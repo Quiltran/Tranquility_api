@@ -18,7 +18,7 @@ type Logger struct {
 }
 
 func CreateLogger(name string) (*Logger, error) {
-	file, err := os.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0777)
+	file, err := os.OpenFile(name+".log", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0777)
 	if err != nil {
 		return nil, err
 	}
