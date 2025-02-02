@@ -18,6 +18,8 @@ func main() {
 		panic(1)
 	}
 
+	services.LoadJWTSettings()
+
 	config, err := config.NewConfig()
 	if err != nil {
 		logger.ERROR(fmt.Errorf("error creating config: %v", err).Error())
