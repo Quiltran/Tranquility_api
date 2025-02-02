@@ -8,6 +8,7 @@ import (
 	"tranquility/config"
 	"tranquility/controllers"
 	"tranquility/data"
+	"tranquility/middleware"
 	"tranquility/services"
 )
 
@@ -41,7 +42,9 @@ func main() {
 		config,
 	).RegisterRoutes(&server)
 
-	if err := http.ListenAndServe(":8080", server); err != nil {
+	mux := middleware.RequestLog(server, logger)
+
+	if err := http.ListenAndServe(":8080", mux); err != nil {
 		log.Fatalln(err)
 		panic(1)
 	}
