@@ -32,13 +32,12 @@ func main() {
 		logger.ERROR(fmt.Errorf("error creating connection to database: %v", err).Error())
 		panic(1)
 	}
-	dbCommands := services.NewDatabaseCommands(database)
 
 	server := app.CreateApp(database, logger)
 
 	controllers.NewAuthController(
 		logger,
-		dbCommands,
+		database,
 		config,
 	).RegisterRoutes(&server)
 

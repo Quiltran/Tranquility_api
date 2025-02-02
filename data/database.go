@@ -2,7 +2,13 @@ package data
 
 import (
 	"context"
+	"errors"
 	"tranquility/models"
+)
+
+var (
+	ErrMissingPassword    = errors.New("password is required")
+	ErrInvalidCredentials = errors.New("invalid username or password")
 )
 
 // This interface is used when creating new controllers.

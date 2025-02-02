@@ -2,21 +2,23 @@ package controllers
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"tranquility/app"
 	"tranquility/config"
+	"tranquility/data"
 	"tranquility/models"
 	"tranquility/services"
 )
 
 type Auth struct {
-	logger     *services.Logger
-	dbCommands *services.DatabaseCommands
-	config     *config.Config
+	logger   *services.Logger
+	database data.IDatabase
+	config   *config.Config
 }
 
-func NewAuthController(logger *services.Logger, dbCommands *services.DatabaseCommands, config *config.Config) *Auth {
+func NewAuthController(logger *services.Logger, dbCommands data.IDatabase, config *config.Config) *Auth {
 	return &Auth{logger, dbCommands, config}
 }
 
@@ -34,37 +36,23 @@ func (a *Auth) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if body.Password == "" {
-		a.logger.WARNING("a login request happened without a proper body")
-		http.Error(w, "Invalid Body", http.StatusBadRequest)
-		return
-	}
-
-	credentials, err := a.dbCommands.Login(r.Context(), &body)
+	credentials, err := a.database.Login(r.Context(), &body)
 	if err != nil {
-		a.logger.ERROR(err.Error())
-		http.Error(w, "", http.StatusInternalServerError)
-		return
+		switch {
+		case errors.Is(err, data.ErrInvalidCredentials):
+			a.logger.WARNING(fmt.Errorf("an invalid login attempt occurred for %s: %v", body.Username, err).Error())
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		case errors.Is(err, data.ErrMissingPassword):
+			a.logger.WARNING(err.Error())
+			http.Error(w, "Bad Request", http.StatusBadRequest)
+			return
+		default:
+			a.logger.ERROR(err.Error())
+			http.Error(w, "", http.StatusInternalServerError)
+			return
+		}
 	}
-
-	passwordsMatch, err := services.VerifyPassword(body.Password, credentials.Password)
-	if err != nil {
-		a.logger.ERROR(fmt.Sprintf("unable to verify password hash: %s", err))
-		http.Error(w, "", http.StatusInternalServerError)
-		return
-	}
-	if !passwordsMatch {
-		a.logger.WARNING("an invalid login attempt took place: bad password")
-		http.Error(w, "", http.StatusUnauthorized)
-		return
-	}
-
-	authToken, err := services.GenerateToken(credentials)
-	if err != nil {
-		a.logger.ERROR(fmt.Errorf("an error occurred while generating token: %v", err).Error())
-	}
-	credentials.Token = authToken
-	credentials.ClearAuth()
 
 	w.Header().Add("content-type", "application/json")
 	if err = json.NewEncoder(w).Encode(credentials); err != nil {
@@ -83,22 +71,18 @@ func (a *Auth) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if body.Password == "" || body.ConfirmPassword == "" {
-		a.logger.WARNING("a register request happened with invalid passwords")
-		http.Error(w, "Invalid Body", http.StatusBadRequest)
-		return
-	}
-
-	body.Password, err = services.HashPassword(body.Password)
+	user, err := a.database.Register(r.Context(), &body)
 	if err != nil {
-		a.logger.ERROR(fmt.Errorf("an error occurred hashing password while registering user: %v", err).Error())
-	}
-
-	user, err := a.dbCommands.Register(r.Context(), &body)
-	if err != nil {
-		a.logger.ERROR(fmt.Errorf("an error occurred while registering user: %v", err).Error())
-		http.Error(w, "", http.StatusInternalServerError)
-		return
+		switch {
+		case errors.Is(err, data.ErrInvalidCredentials):
+			a.logger.WARNING(fmt.Sprintf("an invalid register request has been made: %v", err))
+			http.Error(w, "Invalid Body", http.StatusBadRequest)
+			return
+		default:
+			a.logger.ERROR(fmt.Sprintf("an error occurred while registering user: %v", err))
+			http.Error(w, "", http.StatusInternalServerError)
+			return
+		}
 	}
 
 	w.Header().Add("content-type", "application/json")

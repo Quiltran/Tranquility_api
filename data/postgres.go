@@ -1,12 +1,16 @@
 package data
 
 import (
+	"context"
+	"fmt"
+	"tranquility/models"
+	"tranquility/services"
+
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 )
 
 type Postgres struct {
-	db *sqlx.DB
 	authRepo
 }
 
@@ -17,7 +21,51 @@ func CreatePostgres(connectionString string) (*Postgres, error) {
 	}
 
 	return &Postgres{
-		db:       db,
 		authRepo: authRepo{db},
 	}, nil
+}
+
+func (p *Postgres) Login(ctx context.Context, user *models.AuthUser) (*models.AuthUser, error) {
+	if user.Password == "" {
+		return nil, ErrMissingPassword
+	}
+
+	credentials, err := p.authRepo.Login(ctx, user)
+	if err != nil {
+		return nil, err
+	}
+
+	if ok, err := services.VerifyPassword(user.Password, credentials.Password); err != nil {
+		return nil, fmt.Errorf("an error occurred while verifying password: %v", err)
+	} else if !ok {
+		return nil, ErrInvalidCredentials
+	}
+
+	authToken, err := services.GenerateToken(credentials)
+	if err != nil {
+		return nil, fmt.Errorf("an error occurred while generating token: %v", err)
+	}
+	credentials.Token = authToken
+	credentials.ClearAuth()
+
+	return credentials, nil
+}
+
+func (p *Postgres) Register(ctx context.Context, user *models.AuthUser) (*models.AuthUser, error) {
+	if user.Password == "" || user.ConfirmPassword == "" {
+		return nil, ErrInvalidCredentials
+	}
+
+	password, err := services.HashPassword(user.Password)
+	if err != nil {
+		return nil, fmt.Errorf("an error occurred hashing password while registering user: %v", err)
+	}
+
+	user.Password = password
+	output, err := p.authRepo.Register(ctx, user)
+	if err != nil {
+		return nil, fmt.Errorf("an error occurred while registering user: %v", err)
+	}
+
+	return output, nil
 }
