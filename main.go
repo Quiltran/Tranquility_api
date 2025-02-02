@@ -33,7 +33,7 @@ func main() {
 	}
 	dbCommands := services.NewDatabaseCommands(database)
 
-	server := app.CreateApp(database)
+	server := app.CreateApp(database, logger)
 
 	controllers.NewAuthController(
 		logger,
