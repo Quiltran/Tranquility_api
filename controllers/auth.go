@@ -8,7 +8,6 @@ import (
 	"tranquility/app"
 	"tranquility/config"
 	"tranquility/data"
-	"tranquility/middleware"
 	"tranquility/models"
 	"tranquility/services"
 )
@@ -104,9 +103,14 @@ func (a *Auth) refreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	claims, ok := r.Context().Value(middleware.ClaimsContextKey).(*services.Claims)
-	if !ok {
-		a.logger.WARNING("a request was made without valid claims to refresh auth tokens")
+	requestId, err := getRequestID(r)
+	if err != nil {
+		a.logger.ERROR(err.Error())
+	}
+
+	claims, err := getClaims(r)
+	if err != nil {
+		a.logger.WARNING(fmt.Sprintf("a request to refresh auth tokens did not have claims in the request: %s", err))
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -116,11 +120,11 @@ func (a *Auth) refreshToken(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrInvalidCredentials):
-			a.logger.WARNING("a request was made to refresh auth token invalid data")
+			a.logger.WARNING(fmt.Sprintf("a request was made to refresh auth token invalid data. request id: %s", requestId))
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		default:
-			a.logger.ERROR(fmt.Sprintf("an error occurred while refreshing %d auth token: %v", user.ID, err))
+			a.logger.ERROR(fmt.Sprintf("an error occurred while refreshing %d auth token: %v. request id: %s", user.ID, err, requestId))
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 			return
 		}
