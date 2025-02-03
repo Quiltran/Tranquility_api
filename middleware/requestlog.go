@@ -26,6 +26,6 @@ func RequestLog(next http.Handler, logger *services.Logger) http.Handler {
 		next.ServeHTTP(w, r)
 
 		duration := time.Since(start)
-		logger.TRACE(fmt.Sprintf("Request %s completed in: %s", requestID, duration.String()))
+		logger.TRACE(fmt.Sprintf("Request %s completed in %s", requestID, duration.String()))
 	})
 }
