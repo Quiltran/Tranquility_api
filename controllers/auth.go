@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"tranquility/app"
-	"tranquility/config"
 	"tranquility/data"
 	"tranquility/models"
 	"tranquility/services"
@@ -15,11 +14,10 @@ import (
 type Auth struct {
 	logger   *services.Logger
 	database data.IDatabase
-	config   *config.Config
 }
 
-func NewAuthController(logger *services.Logger, dbCommands data.IDatabase, config *config.Config) *Auth {
-	return &Auth{logger, dbCommands, config}
+func NewAuthController(logger *services.Logger, dbCommands data.IDatabase) *Auth {
+	return &Auth{logger, dbCommands}
 }
 
 func (a *Auth) RegisterRoutes(app *app.App) {

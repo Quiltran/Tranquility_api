@@ -38,7 +38,6 @@ func main() {
 	controllers.NewAuthController(
 		logger,
 		database,
-		config,
 	).RegisterRoutes(&server)
 
 	mux := middleware.RequestLog(server, logger)
