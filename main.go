@@ -33,7 +33,7 @@ func main() {
 		panic(1)
 	}
 
-	server := app.CreateApp(database, logger)
+	server := app.CreateApp(logger)
 
 	controllers.NewAuthController(
 		logger,

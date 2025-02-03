@@ -3,22 +3,19 @@ package app
 import (
 	"fmt"
 	"net/http"
-	"tranquility/data"
 	"tranquility/middleware"
 	"tranquility/services"
 )
 
 type App struct {
-	database data.IDatabase
-	mux      *http.ServeMux
-	logger   *services.Logger
+	mux    *http.ServeMux
+	logger *services.Logger
 }
 
-func CreateApp(database data.IDatabase, logger *services.Logger) App {
+func CreateApp(logger *services.Logger) App {
 	return App{
-		database: database,
-		mux:      http.NewServeMux(),
-		logger:   logger,
+		mux:    http.NewServeMux(),
+		logger: logger,
 	}
 }
 
