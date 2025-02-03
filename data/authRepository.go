@@ -35,3 +35,15 @@ func (a *authRepo) Register(ctx context.Context, user *models.AuthUser) (*models
 
 	return &output, err
 }
+
+func (a *authRepo) RefreshToken(ctx context.Context, user *models.AuthUser) (*models.AuthUser, error) {
+	var output models.AuthUser
+	err := a.db.QueryRowxContext(
+		ctx,
+		"UPDATE auth SET refresh_token = md5(random()::text), websocket_token = md5(random()::text), updated_date = NOW() AT TIME ZONE 'utc' WHERE id = $1 AND refresh_token = $2 RETURNING id, username, email, refresh_token, websocket_token, updated_date;",
+		user.ID,
+		user.RefreshToken,
+	).StructScan(&output)
+
+	return &output, err
+}

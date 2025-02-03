@@ -8,6 +8,7 @@ import (
 	"tranquility/app"
 	"tranquility/config"
 	"tranquility/data"
+	"tranquility/middleware"
 	"tranquility/models"
 	"tranquility/services"
 )
@@ -23,11 +24,12 @@ func NewAuthController(logger *services.Logger, dbCommands data.IDatabase, confi
 }
 
 func (a *Auth) RegisterRoutes(app *app.App) {
-	app.AddRoute("POST", "/api/auth/login", a.Login)
-	app.AddRoute("POST", "/api/auth/register", a.Register)
+	app.AddRoute("POST", "/api/auth/login", a.login)
+	app.AddRoute("POST", "/api/auth/register", a.register)
+	app.AddRoute("POST", "/api/auth/refresh", a.refreshToken)
 }
 
-func (a *Auth) Login(w http.ResponseWriter, r *http.Request) {
+func (a *Auth) login(w http.ResponseWriter, r *http.Request) {
 	var body models.AuthUser
 	err := json.NewDecoder(r.Body).Decode(&body)
 	if err != nil {
@@ -62,7 +64,7 @@ func (a *Auth) Login(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (a *Auth) Register(w http.ResponseWriter, r *http.Request) {
+func (a *Auth) register(w http.ResponseWriter, r *http.Request) {
 	var body models.AuthUser
 	err := json.NewDecoder(r.Body).Decode(&body)
 	if err != nil {
@@ -83,6 +85,38 @@ func (a *Auth) Register(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "", http.StatusInternalServerError)
 			return
 		}
+	}
+
+	w.Header().Add("content-type", "application/json")
+	if err = json.NewEncoder(w).Encode(user); err != nil {
+		a.logger.ERROR(err.Error())
+		http.Error(w, "", http.StatusInternalServerError)
+		return
+	}
+}
+
+func (a *Auth) refreshToken(w http.ResponseWriter, r *http.Request) {
+	var body models.AuthUser
+	err := json.NewDecoder(r.Body).Decode(&body)
+	if err != nil {
+		a.logger.ERROR(err.Error())
+		http.Error(w, "Invalid Body", http.StatusBadRequest)
+		return
+	}
+
+	claims, ok := r.Context().Value(middleware.ClaimsContextKey).(*services.Claims)
+	if !ok {
+		a.logger.WARNING("a request was made without valid claims to refresh auth tokens")
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	body.ID = claims.ID
+	user, err := a.database.RefreshToken(r.Context(), &body)
+	if err != nil {
+		a.logger.ERROR(fmt.Sprintf("an error occurred while refreshing %d auth token: %v", user.ID, err))
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
 	}
 
 	w.Header().Add("content-type", "application/json")

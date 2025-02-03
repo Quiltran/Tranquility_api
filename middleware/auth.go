@@ -6,11 +6,9 @@ import (
 	"tranquility/services"
 )
 
-type claims string
+type claimsKey struct{}
 
-var (
-	ClaimContext = claims("claims")
-)
+var ClaimsContextKey claimsKey
 
 func ValidateJWT(next http.Handler, logger *services.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -28,7 +26,7 @@ func ValidateJWT(next http.Handler, logger *services.Logger) http.Handler {
 			return
 		}
 
-		ctx := context.WithValue(r.Context(), ClaimContext, claims)
+		ctx := context.WithValue(r.Context(), ClaimsContextKey, claims)
 		r = r.WithContext(ctx)
 
 		next.ServeHTTP(w, r)
