@@ -26,7 +26,7 @@ func NewAuthController(logger *services.Logger, dbCommands data.IDatabase, confi
 func (a *Auth) RegisterRoutes(app *app.App) {
 	app.AddRoute("POST", "/api/auth/login", a.login)
 	app.AddRoute("POST", "/api/auth/register", a.register)
-	app.AddRoute("POST", "/api/auth/refresh", a.refreshToken)
+	app.AddSecureRoute("POST", "/api/auth/refresh", a.refreshToken)
 }
 
 func (a *Auth) login(w http.ResponseWriter, r *http.Request) {
@@ -114,9 +114,16 @@ func (a *Auth) refreshToken(w http.ResponseWriter, r *http.Request) {
 	body.ID = claims.ID
 	user, err := a.database.RefreshToken(r.Context(), &body)
 	if err != nil {
-		a.logger.ERROR(fmt.Sprintf("an error occurred while refreshing %d auth token: %v", user.ID, err))
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		return
+		switch {
+		case errors.Is(err, data.ErrInvalidCredentials):
+			a.logger.WARNING("a request was made to refresh auth token invalid data")
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		default:
+			a.logger.ERROR(fmt.Sprintf("an error occurred while refreshing %d auth token: %v", user.ID, err))
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
 	}
 
 	w.Header().Add("content-type", "application/json")
