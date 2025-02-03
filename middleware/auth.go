@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"tranquility/services"
 )
@@ -12,8 +13,9 @@ var ClaimsContextKey claimsKey
 
 func ValidateJWT(next http.Handler, logger *services.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		authHeader := r.Header.Get("authentication")
+		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
+			logger.WARNING("auth head was missing on required route")
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
@@ -22,6 +24,7 @@ func ValidateJWT(next http.Handler, logger *services.Logger) http.Handler {
 
 		claims, err := services.VerifyToken(token)
 		if err != nil {
+			logger.ERROR(fmt.Sprintf("an error occurred while verifying auth token: %v", err))
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
