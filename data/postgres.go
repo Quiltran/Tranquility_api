@@ -69,3 +69,22 @@ func (p *Postgres) Register(ctx context.Context, user *models.AuthUser) (*models
 
 	return output, nil
 }
+
+func (p *Postgres) RefreshToken(ctx context.Context, user *models.AuthUser) (*models.AuthUser, error) {
+	if user.ID == 0 || user.RefreshToken == "" {
+		return nil, ErrInvalidCredentials
+	}
+
+	credentials, err := p.authRepo.RefreshToken(ctx, user)
+	if err != nil {
+		return nil, err
+	}
+
+	token, err := services.GenerateToken(credentials)
+	if err != nil {
+		return nil, err
+	}
+
+	credentials.Token = token
+	return credentials, nil
+}
