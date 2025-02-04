@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"reflect"
 	"tranquility/middleware"
 	"tranquility/services"
 )
@@ -28,7 +29,9 @@ func getRequestID(r *http.Request) (string, error) {
 
 func getJsonBody[T any](r *http.Request) (*T, error) {
 	var body T
-	if _, ok := any(body).(struct{}); !ok {
+
+	v := reflect.ValueOf(body)
+	if v.Kind() != reflect.Struct {
 		return nil, fmt.Errorf("tried getting body from request but it was not a struct")
 	}
 
