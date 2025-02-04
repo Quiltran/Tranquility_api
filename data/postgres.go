@@ -12,6 +12,7 @@ import (
 
 type Postgres struct {
 	authRepo
+	attachmentRepo
 }
 
 func CreatePostgres(connectionString string) (*Postgres, error) {
@@ -21,7 +22,8 @@ func CreatePostgres(connectionString string) (*Postgres, error) {
 	}
 
 	return &Postgres{
-		authRepo: authRepo{db},
+		authRepo:       authRepo{db},
+		attachmentRepo: attachmentRepo{db},
 	}, nil
 }
 
