@@ -28,6 +28,7 @@ func (f *FileHandler) StoreFile(file *multipart.File, fileName string) (string, 
 	if err != nil {
 		return "", "", err
 	}
+	defer outputFile.Close()
 
 	_, err = io.Copy(outputFile, *file)
 	if err != nil {
