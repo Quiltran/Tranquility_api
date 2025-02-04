@@ -1,7 +1,6 @@
 package services
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -25,12 +24,12 @@ type Claims struct {
 	*jwt.RegisteredClaims
 }
 
-func LoadJWTSettings() error {
+func init() {
 	lifetimeSetting := os.Getenv("JWT_LIFETIME")
 	if lifetimeSetting != "" {
 		l, err := strconv.ParseInt(lifetimeSetting, 10, 64)
 		if err != nil {
-			return fmt.Errorf("an error occurred while loading jwt lifetime: %v", err)
+			panic(fmt.Errorf("an error occurred while loading jwt lifetime: %v", err))
 		}
 		lifetime = time.Duration(time.Duration(l) * time.Minute)
 	}
@@ -47,12 +46,10 @@ func LoadJWTSettings() error {
 
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
-		return errors.New("JWT_SECRET was not set")
+		panic(fmt.Errorf("JWT_SECRET was not set"))
 	} else {
 		key = jwtSecret
 	}
-
-	return nil
 }
 
 func GenerateToken(user *models.AuthUser) (string, error) {

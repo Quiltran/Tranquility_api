@@ -9,7 +9,6 @@ import (
 
 func TestGenerateToken(t *testing.T) {
 	os.Setenv("JWT_SECRET", "testing")
-	services.LoadJWTSettings()
 
 	user := models.AuthUser{
 		ID:       1,
@@ -29,7 +28,6 @@ func TestGenerateToken(t *testing.T) {
 
 func TestValidateToken(t *testing.T) {
 	os.Setenv("JWT_SECRET", "testing")
-	services.LoadJWTSettings()
 
 	user := models.AuthUser{
 		ID:       1,
