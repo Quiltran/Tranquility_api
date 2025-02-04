@@ -37,6 +37,10 @@ func main() {
 		logger,
 		database,
 	).RegisterRoutes(&server)
+	controllers.NewAttachmentController(
+		logger,
+		database,
+	).RegisterRoutes(&server)
 
 	mux := middleware.RequestLog(server, logger)
 

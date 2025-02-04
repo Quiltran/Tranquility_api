@@ -26,3 +26,5 @@ go.work.sum
 
 # removing log files
 *.log
+# test folder that holds uploads
+/uploads
