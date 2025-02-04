@@ -42,3 +42,13 @@ func getJsonBody[T any](r *http.Request) (*T, error) {
 
 	return &body, nil
 }
+
+func writeJsonBody[T any](w http.ResponseWriter, body T) error {
+	v := reflect.ValueOf(body)
+	if v.Kind() != reflect.Struct {
+		return fmt.Errorf("tried writing body to request but it was not a struct")
+	}
+
+	w.Header().Add("content-type", "application/json")
+	return json.NewEncoder(w).Encode(body)
+}
