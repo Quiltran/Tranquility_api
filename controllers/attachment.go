@@ -9,12 +9,13 @@ import (
 )
 
 type Attachment struct {
-	logger   *services.Logger
-	database data.IDatabase
+	logger      *services.Logger
+	fileHandler *services.FileHandler
+	database    data.IDatabase
 }
 
-func NewAttachmentController(logger *services.Logger, database data.IDatabase) *Attachment {
-	return &Attachment{logger, database}
+func NewAttachmentController(logger *services.Logger, fileHandler *services.FileHandler, database data.IDatabase) *Attachment {
+	return &Attachment{logger, fileHandler, database}
 }
 
 func (a *Attachment) RegisterRoutes(app *app.App) {
@@ -51,7 +52,7 @@ func (a *Attachment) uploadAttachment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	outputName, outputPath, err := services.StoreFile(&file, fileName)
+	outputName, outputPath, err := a.fileHandler.StoreFile(&file, fileName)
 	if err != nil {
 		a.logger.ERROR(fmt.Sprintf("an error occurred while storing file to disk: %v", err))
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)

@@ -1,7 +1,6 @@
 package services
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -10,31 +9,20 @@ import (
 	"time"
 )
 
-var (
-	fileUploadPath string = "./uploads"
-)
-
-func init() {
-	path := os.Getenv("UPLOAD_PATH")
-	if path != "" {
-		fileUploadPath = path
-	}
-	if !checkDestination(fileUploadPath) {
-		panic("UPLOAD_PATH provided is invalid")
-	}
+type FileHandler struct {
+	uploadPath string
 }
 
-func checkDestination(filePath string) bool {
-	_, err := os.Stat(filePath)
-	return !errors.Is(err, os.ErrNotExist)
+func NewFileHandler(path string) *FileHandler {
+	return &FileHandler{path}
 }
 
-func StoreFile(file *multipart.File, fileName string) (string, string, error) {
+func (f *FileHandler) StoreFile(file *multipart.File, fileName string) (string, string, error) {
 	timestamp := time.Now().Unix()
 
 	fileName = fmt.Sprintf("%d-%s", timestamp, fileName)
 
-	filePath := path.Join(fileUploadPath, fileName)
+	filePath := path.Join(f.uploadPath, fileName)
 
 	outputFile, err := os.OpenFile(filePath, os.O_CREATE|os.O_TRUNC, 0666)
 	if err != nil {

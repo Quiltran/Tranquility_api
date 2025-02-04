@@ -31,6 +31,8 @@ func main() {
 		panic(1)
 	}
 
+	fileHandler := services.NewFileHandler(config.UploadPath)
+
 	server := app.CreateApp(logger)
 
 	controllers.NewAuthController(
@@ -39,6 +41,7 @@ func main() {
 	).RegisterRoutes(&server)
 	controllers.NewAttachmentController(
 		logger,
+		fileHandler,
 		database,
 	).RegisterRoutes(&server)
 

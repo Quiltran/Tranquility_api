@@ -7,6 +7,7 @@ import (
 
 type Config struct {
 	ConnectionString string
+	UploadPath       string
 }
 
 func NewConfig() (*Config, error) {
@@ -15,7 +16,13 @@ func NewConfig() (*Config, error) {
 		return nil, errors.New("CONNECTION_STRING was not set")
 	}
 
+	uploadPath := os.Getenv("UPLOAD_PATH")
+	if uploadPath == "" {
+		return nil, errors.New("UPLOAD_PATH was not set")
+	}
+
 	return &Config{
 		connectionString,
+		uploadPath,
 	}, nil
 }
