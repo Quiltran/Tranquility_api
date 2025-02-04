@@ -82,10 +82,9 @@ func (a *Auth) register(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	w.Header().Add("content-type", "application/json")
-	if err = json.NewEncoder(w).Encode(user); err != nil {
+	if err = writeJsonBody(w, user); err != nil {
 		a.logger.ERROR(err.Error())
-		http.Error(w, "", http.StatusInternalServerError)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 }
@@ -126,10 +125,9 @@ func (a *Auth) refreshToken(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	w.Header().Add("content-type", "application/json")
-	if err = json.NewEncoder(w).Encode(user); err != nil {
+	if err = writeJsonBody(w, user); err != nil {
 		a.logger.ERROR(err.Error())
-		http.Error(w, "", http.StatusInternalServerError)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 }
