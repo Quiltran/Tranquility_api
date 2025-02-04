@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"tranquility/app"
 	"tranquility/data"
+	"tranquility/models"
 	"tranquility/services"
 )
 
@@ -23,7 +24,14 @@ func (a *Attachment) RegisterRoutes(app *app.App) {
 }
 
 func (a *Attachment) uploadAttachment(w http.ResponseWriter, r *http.Request) {
-	err := r.ParseMultipartForm(10 * 1024)
+	claims, err := getClaims(r)
+	if err != nil {
+		a.logger.ERROR(fmt.Sprintf("A request to upload a file was made but did not have claims: %v", err))
+		http.Error(w, "Bad Request", http.StatusBadRequest)
+		return
+	}
+
+	err = r.ParseMultipartForm(10 * 1024)
 	if err != nil {
 		a.logger.ERROR(fmt.Sprintf("an error occurred while collecting form body while uploading attachment: %v", err))
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
@@ -59,5 +67,25 @@ func (a *Attachment) uploadAttachment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Println(outputName, outputPath)
+	attachment := models.Attachment{
+		FileName:     outputName,
+		FilePath:     outputPath,
+		FileSize:     handler.Size,
+		MimeType:     fileType,
+		UserUploaded: claims.ID,
+	}
+
+	output, err := a.database.CreateAttachment(r.Context(), &attachment)
+	if err != nil {
+		a.logger.ERROR(fmt.Sprintf("an error occurred while saving file to the database: %v", err))
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	fmt.Println(output)
+	if err = writeJsonBody(w, *output); err != nil {
+		a.logger.ERROR(err.Error())
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
 }
