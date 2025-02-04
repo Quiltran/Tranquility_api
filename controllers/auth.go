@@ -27,15 +27,14 @@ func (a *Auth) RegisterRoutes(app *app.App) {
 }
 
 func (a *Auth) login(w http.ResponseWriter, r *http.Request) {
-	var body models.AuthUser
-	err := json.NewDecoder(r.Body).Decode(&body)
+	body, err := getJsonBody[models.AuthUser](r)
 	if err != nil {
-		a.logger.ERROR(err.Error())
+		a.logger.ERROR(fmt.Sprintf("error parsing request body: %v", err))
 		http.Error(w, "Invalid Body", http.StatusBadRequest)
 		return
 	}
 
-	credentials, err := a.database.Login(r.Context(), &body)
+	credentials, err := a.database.Login(r.Context(), body)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrInvalidCredentials):
@@ -62,15 +61,14 @@ func (a *Auth) login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *Auth) register(w http.ResponseWriter, r *http.Request) {
-	var body models.AuthUser
-	err := json.NewDecoder(r.Body).Decode(&body)
+	body, err := getJsonBody[models.AuthUser](r)
 	if err != nil {
 		a.logger.ERROR(err.Error())
 		http.Error(w, "Invalid Body", http.StatusBadRequest)
 		return
 	}
 
-	user, err := a.database.Register(r.Context(), &body)
+	user, err := a.database.Register(r.Context(), body)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrInvalidCredentials):

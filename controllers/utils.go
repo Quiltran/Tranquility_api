@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"tranquility/middleware"
@@ -23,4 +24,18 @@ func getRequestID(r *http.Request) (string, error) {
 	}
 
 	return requestId, nil
+}
+
+func getJsonBody[T any](r *http.Request) (*T, error) {
+	var body T
+	if _, ok := any(body).(struct{}); !ok {
+		return nil, fmt.Errorf("tried getting body from request but it was not a struct")
+	}
+
+	err := json.NewDecoder(r.Body).Decode(&body)
+	if err != nil {
+		return nil, err
+	}
+
+	return &body, nil
 }
