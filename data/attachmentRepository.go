@@ -2,6 +2,8 @@ package data
 
 import (
 	"context"
+	"database/sql"
+	"fmt"
 	"tranquility/models"
 
 	"github.com/jmoiron/sqlx"
@@ -25,4 +27,39 @@ func (a *attachmentRepo) CreateAttachment(ctx context.Context, attachment *model
 		&attachment.UserUploaded,
 	).StructScan(&output)
 	return &output, err
+}
+
+func (a *attachmentRepo) DeleteAttachment(ctx context.Context, fileId int32) (*sql.Tx, string, error) {
+	tx, err := a.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, "", err
+	}
+
+	var fileName string
+	rows, err := tx.QueryContext(
+		ctx,
+		`DELETE FROM attachment WHERE id = $1 RETURNING file_name`,
+		fileId,
+	)
+	if err != nil {
+		return nil, "", err
+	}
+	defer rows.Close()
+
+	if !rows.Next() {
+		tx.Rollback()
+		return nil, "", nil
+	}
+
+	if err := rows.Scan(&fileName); err != nil {
+		tx.Rollback()
+		return nil, "", fmt.Errorf("an error occurred while scanning file name while deleting: %v", err)
+	}
+
+	if rows.Next() {
+		tx.Rollback()
+		return nil, "", fmt.Errorf("more than one file was affected by the delete operation on attachment %d", fileId)
+	}
+
+	return tx, fileName, nil
 }

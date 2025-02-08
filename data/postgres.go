@@ -2,6 +2,7 @@ package data
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"mime/multipart"
 	"tranquility/models"
@@ -9,6 +10,10 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
+)
+
+var (
+	ErrAttachmentNotFound = errors.New("attachment was not found while deleting")
 )
 
 type Postgres struct {
@@ -108,4 +113,22 @@ func (p *Postgres) CreateAttachment(ctx context.Context, file *multipart.File, a
 	}
 
 	return output, nil
+}
+
+func (p *Postgres) DeleteAttachment(ctx context.Context, fileId int32) error {
+	transaction, fileName, err := p.attachmentRepo.DeleteAttachment(ctx, fileId)
+	if err != nil {
+		return err
+	}
+	if fileName == "" {
+		return ErrAttachmentNotFound
+	}
+
+	err = p.fileHandler.DeleteFile(fileName)
+	if err != nil {
+		return err
+	}
+
+	transaction.Commit()
+	return nil
 }

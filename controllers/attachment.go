@@ -2,7 +2,9 @@ package controllers
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
+	"strconv"
 	"tranquility/app"
 	"tranquility/data"
 	"tranquility/models"
@@ -21,7 +23,7 @@ func NewAttachmentController(logger services.Logger, fileHandler *services.FileH
 
 func (a *Attachment) RegisterRoutes(app *app.App) {
 	app.AddSecureRoute("POST", "/api/attachment", a.uploadAttachment)
-	app.AddSecureRoute("DELETE", "/api/attachment", a.uploadAttachment)
+	app.AddSecureRoute("DELETE", "/api/attachment/{id}", a.deleteAttachment)
 }
 
 func (a *Attachment) uploadAttachment(w http.ResponseWriter, r *http.Request) {
@@ -57,8 +59,42 @@ func (a *Attachment) uploadAttachment(w http.ResponseWriter, r *http.Request) {
 		handleError(w, a.logger, err, claims, http.StatusBadRequest, "error")
 		return
 	}
+
+	output.FilePath = ""
+	output.FileSize = 0
+	output.MimeType = ""
+	w.WriteHeader(http.StatusCreated)
 	if err = writeJsonBody(w, *output); err != nil {
 		handleError(w, a.logger, err, claims, http.StatusInternalServerError, "error")
+		return
+	}
+}
+
+func (a *Attachment) deleteAttachment(w http.ResponseWriter, r *http.Request) {
+	claims, err := getClaims(r)
+	if err != nil {
+		handleError(w, a.logger, err, nil, http.StatusBadRequest, "error")
+		return
+	}
+
+	fileIdValue := r.PathValue("id")
+	if fileIdValue == "" {
+		handleError(w, a.logger, fmt.Errorf("invalid file id was provided to be deleted"), claims, http.StatusBadRequest, "warning")
+		return
+	}
+	fileId, err := strconv.Atoi(fileIdValue)
+	if err != nil {
+		handleError(w, a.logger, err, claims, http.StatusInternalServerError, "error")
+		return
+	}
+
+	if err = a.database.DeleteAttachment(r.Context(), int32(fileId)); err != nil {
+		switch {
+		case errors.Is(err, data.ErrAttachmentNotFound):
+			handleError(w, a.logger, err, claims, http.StatusBadRequest, "warning")
+		default:
+			handleError(w, a.logger, err, claims, http.StatusInternalServerError, "error")
+		}
 		return
 	}
 }
