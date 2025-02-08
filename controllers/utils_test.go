@@ -1,13 +1,204 @@
 package controllers
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 	"tranquility/services"
 )
+
+func TestGetJsonBody(t *testing.T) {
+	type Address struct {
+		Street string `json:"street"`
+		City   string `json:"city"`
+	}
+	type TestStruct struct {
+		Name    string  `json:"name"`
+		Age     int     `json:"age"`
+		Email   string  `json:"email,omitempty"` // Example of optional field
+		Address Address `json:"address"`         //Example of nested struct
+	}
+
+	tests := []struct {
+		name        string
+		requestBody string
+		want        TestStruct
+		wantErr     bool
+		errMsg      string //Specific error message check
+	}{
+		{
+			name:        "Valid JSON",
+			requestBody: `{"name": "John Doe", "age": 30, "address": {"street":"123 Main St", "city":"Anytown"}}`,
+			want:        TestStruct{Name: "John Doe", Age: 30, Address: Address{Street: "123 Main St", City: "Anytown"}},
+			wantErr:     false,
+		},
+		{
+			name:        "Invalid JSON",
+			requestBody: `{"name": "John Doe", "age": "30"}`, // Age should be int
+			want:        TestStruct{},
+			wantErr:     true,
+			errMsg:      "json: cannot unmarshal string into Go struct field TestStruct.age of type int",
+			// errMsg:      "invalid character '}' after value", //Or a more general error check
+		},
+		{
+			name:        "Empty JSON",
+			requestBody: `{}`,
+			want:        TestStruct{}, //Empty struct is valid
+			wantErr:     false,
+		},
+		{
+			name:        "Missing field",
+			requestBody: `{"name": "John Doe"}`,       //Missing age
+			want:        TestStruct{Name: "John Doe"}, // Zero value for int
+			wantErr:     false,
+		},
+		{
+			name:        "Optional Field",
+			requestBody: `{"name": "John Doe", "age": 30, "email": "john.doe@example.com"}`,
+			want:        TestStruct{Name: "John Doe", Age: 30, Email: "john.doe@example.com", Address: Address{}}, //Zero value for Address
+			wantErr:     false,
+		},
+		{
+			name:        "Not a struct",
+			requestBody: `123`, //Not a struct
+			want:        TestStruct{},
+			wantErr:     true,
+			errMsg:      "json: cannot unmarshal number into Go value of type controllers.TestStruct",
+		},
+		{
+			name:        "Nested Struct",
+			requestBody: `{"name": "John Doe", "age": 30, "address": {"street":"123 Main St", "city":"Anytown"}}`,
+			want:        TestStruct{Name: "John Doe", Age: 30, Address: Address{Street: "123 Main St", City: "Anytown"}},
+			wantErr:     false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			reqBody := bytes.NewReader([]byte(tt.requestBody))
+			r, _ := http.NewRequest("POST", "/", reqBody) // Method doesn't matter for this test
+
+			got, err := getJsonBody[TestStruct](r)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("getJsonBody() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if tt.wantErr {
+				if tt.errMsg != "" && err.Error() != tt.errMsg {
+					t.Errorf("getJsonBody() error message = %v, want message %v", err.Error(), tt.errMsg)
+				}
+				return //If we expect an error, no need to check the value
+			}
+
+			if !reflect.DeepEqual(*got, tt.want) { // Use DeepEqual for struct comparison
+				t.Errorf("getJsonBody() = %v, want %v", *got, tt.want)
+			}
+		})
+	}
+}
+
+func TestWriteJsonBody(t *testing.T) {
+	tests := []struct {
+		name                string
+		body                interface{}
+		expectedErr         string
+		expectedBody        string
+		expectedContentType string
+	}{
+		{
+			name: "Valid struct",
+			body: struct {
+				Name string `json:"name"`
+				Age  int    `json:"age"`
+			}{Name: "Alice", Age: 30},
+			expectedBody:        `{"name":"Alice","age":30}`,
+			expectedContentType: "application/json",
+		},
+		{
+			name:                "Empty struct",
+			body:                struct{}{},
+			expectedBody:        `{}`,
+			expectedContentType: "application/json",
+		},
+		{
+			name: "Nested struct",
+			body: struct {
+				Address struct {
+					City    string `json:"city"`
+					ZipCode string `json:"zip"`
+				} `json:"address"`
+			}{Address: struct {
+				City    string `json:"city"`
+				ZipCode string `json:"zip"`
+			}{City: "New York", ZipCode: "10001"}},
+			expectedBody:        `{"address":{"city":"New York","zip":"10001"}}`,
+			expectedContentType: "application/json",
+		},
+		{
+			name:        "Not a struct",
+			body:        "not a struct",
+			expectedErr: "tried writing body to request but it was not a struct",
+		},
+		{
+			name:        "Slice",
+			body:        []int{1, 2, 3},
+			expectedErr: "tried writing body to request but it was not a struct",
+		},
+		{
+			name:        "Map",
+			body:        map[string]int{"a": 1},
+			expectedErr: "tried writing body to request but it was not a struct",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+
+			err := writeJsonBody(recorder, tt.body)
+
+			if tt.expectedErr != "" {
+				if err == nil {
+					t.Errorf("expected error: %q, but got nil", tt.expectedErr)
+				} else if err.Error() != tt.expectedErr {
+					t.Errorf("expected error: %q, but got: %q", tt.expectedErr, err.Error())
+				}
+				return // If expecting error, no further checks needed
+			}
+
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
+
+			if recorder.Header().Get("content-type") != tt.expectedContentType {
+				t.Errorf("expected content-type: %q, but got: %q", tt.expectedContentType, recorder.Header().Get("content-type"))
+			}
+
+			var buf bytes.Buffer
+			buf.ReadFrom(recorder.Body)
+			actualBody := buf.String()
+
+			// Use a more robust comparison for JSON to handle variations in whitespace/ordering
+			var expectedJSON interface{}
+			json.Unmarshal([]byte(tt.expectedBody), &expectedJSON)
+			var actualJSON interface{}
+			json.Unmarshal([]byte(actualBody), &actualJSON)
+
+			if !reflect.DeepEqual(actualJSON, expectedJSON) {
+				t.Errorf("expected body: %q, but got: %q", tt.expectedBody, actualBody)
+			}
+
+		})
+	}
+}
 
 func TestHandleError(t *testing.T) {
 	// Create a mock logger

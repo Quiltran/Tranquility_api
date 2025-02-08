@@ -61,9 +61,9 @@ func handleError(w http.ResponseWriter, logger services.Logger, err error, claim
 		}
 	}
 	switch strings.ToLower(logLevel) {
-	case "ERROR":
+	case "error":
 		logger.ERROR(fmt.Sprintf("%s encountered error: %v", claims.Username, err))
-	case "WARNING":
+	case "warning":
 		logger.ERROR(fmt.Sprintf("%s encountered warning: %v", claims.Username, err))
 	}
 	http.Error(w, http.StatusText(code), code)
