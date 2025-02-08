@@ -9,10 +9,10 @@ import (
 
 type App struct {
 	mux    *http.ServeMux
-	logger *services.Logger
+	logger services.Logger
 }
 
-func CreateApp(logger *services.Logger) App {
+func CreateApp(logger services.Logger) App {
 	return App{
 		mux:    http.NewServeMux(),
 		logger: logger,

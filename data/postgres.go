@@ -3,6 +3,7 @@ package data
 import (
 	"context"
 	"fmt"
+	"mime/multipart"
 	"tranquility/models"
 	"tranquility/services"
 
@@ -13,6 +14,7 @@ import (
 type Postgres struct {
 	authRepo
 	attachmentRepo
+	fileHandler services.FileHandler
 }
 
 func CreatePostgres(connectionString string) (*Postgres, error) {
@@ -86,7 +88,23 @@ func (p *Postgres) RefreshToken(ctx context.Context, user *models.AuthUser) (*mo
 	if err != nil {
 		return nil, err
 	}
-
 	credentials.Token = token
 	return credentials, nil
+}
+
+func (p *Postgres) CreateAttachment(ctx context.Context, file *multipart.File, attachment *models.Attachment) (*models.Attachment, error) {
+	outputName, outputPath, err := p.fileHandler.StoreFile(file, attachment.FileName)
+	if err != nil {
+		return nil, err
+	}
+
+	attachment.FileName = outputName
+	attachment.FilePath = outputPath
+
+	output, err := p.attachmentRepo.CreateAttachment(ctx, attachment)
+	if err != nil {
+		return nil, err
+	}
+
+	return output, nil
 }

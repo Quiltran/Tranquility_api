@@ -37,3 +37,8 @@ func (f *FileHandler) StoreFile(file *multipart.File, fileName string) (string, 
 
 	return fileName, filePath, err
 }
+
+func (f *FileHandler) DeleteFile(fileName string) error {
+	filePath := path.Join(f.uploadPath, fileName)
+	return os.Remove(filePath)
+}

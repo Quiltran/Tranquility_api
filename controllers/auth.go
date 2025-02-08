@@ -12,11 +12,11 @@ import (
 )
 
 type Auth struct {
-	logger   *services.Logger
+	logger   services.Logger
 	database data.IDatabase
 }
 
-func NewAuthController(logger *services.Logger, dbCommands data.IDatabase) *Auth {
+func NewAuthController(logger services.Logger, dbCommands data.IDatabase) *Auth {
 	return &Auth{logger, dbCommands}
 }
 

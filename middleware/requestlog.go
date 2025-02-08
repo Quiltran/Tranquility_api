@@ -14,7 +14,7 @@ type requestIDKey struct{}
 
 var RequestID requestIDKey
 
-func RequestLog(next http.Handler, logger *services.Logger) http.Handler {
+func RequestLog(next http.Handler, logger services.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		requestID := uuid.New().String()

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
+	"strings"
 	"tranquility/middleware"
 	"tranquility/services"
 )
@@ -51,4 +52,19 @@ func writeJsonBody[T any](w http.ResponseWriter, body T) error {
 
 	w.Header().Add("content-type", "application/json")
 	return json.NewEncoder(w).Encode(body)
+}
+
+func handleError(w http.ResponseWriter, logger services.Logger, err error, claims *services.Claims, code int, logLevel string) {
+	if claims == nil {
+		claims = &services.Claims{
+			Username: "Anonymous",
+		}
+	}
+	switch strings.ToLower(logLevel) {
+	case "ERROR":
+		logger.ERROR(fmt.Sprintf("%s encountered error: %v", claims.Username, err))
+	case "WARNING":
+		logger.ERROR(fmt.Sprintf("%s encountered warning: %v", claims.Username, err))
+	}
+	http.Error(w, http.StatusText(code), code)
 }

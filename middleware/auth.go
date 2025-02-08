@@ -11,7 +11,7 @@ type claimsKey struct{}
 
 var ClaimsContextKey claimsKey
 
-func ValidateJWT(next http.Handler, logger *services.Logger) http.Handler {
+func ValidateJWT(next http.Handler, logger services.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
