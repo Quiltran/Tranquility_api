@@ -14,10 +14,10 @@ import (
 type Postgres struct {
 	authRepo
 	attachmentRepo
-	fileHandler services.FileHandler
+	fileHandler *services.FileHandler
 }
 
-func CreatePostgres(connectionString string) (*Postgres, error) {
+func CreatePostgres(connectionString string, fileHandler *services.FileHandler) (*Postgres, error) {
 	db, err := sqlx.Connect("postgres", "user=postgres password=server dbname=tranquility sslmode=disable")
 	if err != nil {
 		return nil, err
@@ -26,6 +26,7 @@ func CreatePostgres(connectionString string) (*Postgres, error) {
 	return &Postgres{
 		authRepo:       authRepo{db},
 		attachmentRepo: attachmentRepo{db},
+		fileHandler:    fileHandler,
 	}, nil
 }
 

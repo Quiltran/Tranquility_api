@@ -39,6 +39,7 @@ func NewAttachmentFromRequest(r *http.Request, userId int32, fieldName string) (
 	}
 
 	return &Attachment{
+		FileName:     fileName,
 		FileSize:     handler.Size,
 		MimeType:     fileType,
 		UserUploaded: userId,

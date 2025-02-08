@@ -25,13 +25,13 @@ func main() {
 		panic(1)
 	}
 
-	database, err := data.CreatePostgres(config.ConnectionString)
+	fileHandler := services.NewFileHandler(config.UploadPath)
+
+	database, err := data.CreatePostgres(config.ConnectionString, fileHandler)
 	if err != nil {
 		logger.ERROR(fmt.Errorf("error creating connection to database: %v", err).Error())
 		panic(1)
 	}
-
-	fileHandler := services.NewFileHandler(config.UploadPath)
 
 	server := app.CreateApp(logger)
 
