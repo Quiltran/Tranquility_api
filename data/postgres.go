@@ -19,6 +19,7 @@ var (
 type Postgres struct {
 	authRepo
 	attachmentRepo
+	guildRepo
 	fileHandler *services.FileHandler
 }
 
@@ -31,6 +32,7 @@ func CreatePostgres(connectionString string, fileHandler *services.FileHandler) 
 	return &Postgres{
 		authRepo:       authRepo{db},
 		attachmentRepo: attachmentRepo{db},
+		guildRepo:      guildRepo{db},
 		fileHandler:    fileHandler,
 	}, nil
 }
@@ -131,4 +133,21 @@ func (p *Postgres) DeleteAttachment(ctx context.Context, fileId, userId int32) e
 
 	transaction.Commit()
 	return nil
+}
+
+func (p *Postgres) GetJoinedGuilds(ctx context.Context, userId int32) ([]models.Guild, error) {
+	guilds, err := p.guildRepo.GetJoinedGuilds(ctx, userId)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range guilds {
+		channels, err := p.guildRepo.GetGuildChannels(ctx, guilds[i].ID, userId)
+		if err != nil {
+			return nil, err
+		}
+		guilds[i].Channels = channels
+	}
+
+	return guilds, nil
 }

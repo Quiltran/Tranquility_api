@@ -44,6 +44,10 @@ func main() {
 		fileHandler,
 		database,
 	).RegisterRoutes(&server)
+	controllers.NewGuildController(
+		logger,
+		database,
+	).RegisterRoutes(&server)
 
 	mux := middleware.RequestLog(server, logger)
 
