@@ -88,7 +88,7 @@ func (a *Attachment) deleteAttachment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = a.database.DeleteAttachment(r.Context(), int32(fileId)); err != nil {
+	if err = a.database.DeleteAttachment(r.Context(), int32(fileId), claims.ID); err != nil {
 		switch {
 		case errors.Is(err, data.ErrAttachmentNotFound):
 			handleError(w, a.logger, err, claims, http.StatusBadRequest, "warning")

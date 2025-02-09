@@ -29,7 +29,7 @@ func (a *attachmentRepo) CreateAttachment(ctx context.Context, attachment *model
 	return &output, err
 }
 
-func (a *attachmentRepo) DeleteAttachment(ctx context.Context, fileId int32) (*sql.Tx, string, error) {
+func (a *attachmentRepo) DeleteAttachment(ctx context.Context, fileId, userId int32) (*sql.Tx, string, error) {
 	tx, err := a.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, "", err
@@ -38,8 +38,9 @@ func (a *attachmentRepo) DeleteAttachment(ctx context.Context, fileId int32) (*s
 	var fileName string
 	rows, err := tx.QueryContext(
 		ctx,
-		`DELETE FROM attachment WHERE id = $1 RETURNING file_name`,
+		`DELETE FROM attachment WHERE id = $1 and user_uploaded = $2 RETURNING file_name;`,
 		fileId,
+		userId,
 	)
 	if err != nil {
 		return nil, "", err

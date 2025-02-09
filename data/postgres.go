@@ -115,8 +115,8 @@ func (p *Postgres) CreateAttachment(ctx context.Context, file *multipart.File, a
 	return output, nil
 }
 
-func (p *Postgres) DeleteAttachment(ctx context.Context, fileId int32) error {
-	transaction, fileName, err := p.attachmentRepo.DeleteAttachment(ctx, fileId)
+func (p *Postgres) DeleteAttachment(ctx context.Context, fileId, userId int32) error {
+	transaction, fileName, err := p.attachmentRepo.DeleteAttachment(ctx, fileId, userId)
 	if err != nil {
 		return err
 	}
