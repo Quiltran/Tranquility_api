@@ -70,6 +70,26 @@ func (g *guildRepo) GetGuildChannels(ctx context.Context, guildId, userId int32)
 	return output, err
 }
 
+func (g *guildRepo) GetGuildChannel(ctx context.Context, guildId, channelId, userId int32) (*models.Channel, error) {
+	var output models.Channel
+	err := g.db.QueryRowxContext(
+		ctx,
+		`SELECT c.id, c.name, c.message_count, c.guild_id, c.created_date, c.updated_date
+		 FROM channel c
+		 JOIN member m on c.guild_id = m.guild_id
+		 WHERE c.id = $1 AND m.user_id = $2 AND c.guild_id = $3`,
+		channelId,
+		userId,
+		guildId,
+	).StructScan(&output)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &output, nil
+}
+
 func (g *guildRepo) GetOwnedGuilds(ctx context.Context, userId int32) ([]models.Guild, error) {
 	var output []models.Guild = make([]models.Guild, 0)
 	rows, err := g.db.QueryContext(
