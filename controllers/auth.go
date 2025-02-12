@@ -34,7 +34,7 @@ func (a *Auth) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	credentials, err := a.database.Login(r.Context(), body)
+	user, err := a.database.Login(r.Context(), body)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrInvalidCredentials):
@@ -52,10 +52,9 @@ func (a *Auth) login(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	w.Header().Add("content-type", "application/json")
-	if err = json.NewEncoder(w).Encode(credentials); err != nil {
+	if err = writeJsonBody(w, user); err != nil {
 		a.logger.ERROR(err.Error())
-		http.Error(w, "", http.StatusInternalServerError)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 }

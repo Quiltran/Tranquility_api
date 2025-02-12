@@ -46,6 +46,14 @@ func getJsonBody[T any](r *http.Request) (*T, error) {
 
 func writeJsonBody[T any](w http.ResponseWriter, body T) error {
 	v := reflect.ValueOf(body)
+
+	if v.Kind() == reflect.Pointer {
+		if v.IsNil() {
+			return fmt.Errorf("nil pointer provided to response body")
+		}
+
+		v = v.Elem()
+	}
 	switch v.Kind() {
 	case reflect.Array:
 	case reflect.Struct:

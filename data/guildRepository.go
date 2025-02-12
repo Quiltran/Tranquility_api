@@ -69,3 +69,49 @@ func (g *guildRepo) GetGuildChannels(ctx context.Context, guildId, userId int32)
 
 	return output, err
 }
+
+func (g *guildRepo) GetOwnedGuilds(ctx context.Context, userId int32) ([]models.Guild, error) {
+	var output []models.Guild = make([]models.Guild, 0)
+	rows, err := g.db.QueryContext(
+		ctx,
+		`SELECT id, name, description, owner_id, created_date, updated_date
+         FROM guild
+         WHERE owner_id = $1;`,
+		userId,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var guild models.Guild
+		if err := rows.Scan(&guild.ID, &guild.Name, &guild.Description, &guild.OwnerId, &guild.CreatedDate, &guild.UpdatedDate); err != nil {
+			return nil, err
+		}
+		output = append(output, guild)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return output, err
+}
+
+func (g *guildRepo) GetGuildByID(ctx context.Context, guildId, userId int32) (*models.Guild, error) {
+	var output models.Guild
+	err := g.db.QueryRowxContext(
+		ctx,
+		`SELECT g.id, g.name, g.description, g.owner_id, g.created_date, g.updated_date
+		 FROM guild g
+		 JOIN member as m on m.guild_id = g.id AND m.user_id = $2
+		 WHERE g.id = $1;`,
+		guildId,
+		userId,
+	).StructScan(&output)
+	if err != nil {
+		return nil, err
+	}
+
+	return &output, nil
+}
