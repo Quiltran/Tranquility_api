@@ -151,3 +151,23 @@ func (p *Postgres) GetJoinedGuilds(ctx context.Context, userId int32) ([]models.
 
 	return guilds, nil
 }
+
+func (p *Postgres) CreateGuild(ctx context.Context, guild *models.Guild, userId int32) (*models.Guild, error) {
+	tx, guild, err := p.guildRepo.CreateGuild(ctx, guild, userId)
+	if err != nil {
+		return nil, err
+	}
+
+	if err = p.guildRepo.AddGuildMember(ctx, guild.ID, userId, tx); err != nil {
+		if rbErr := tx.Rollback(); rbErr != nil {
+			return nil, fmt.Errorf("rollback error: %v, original error: %v", rbErr, err)
+		}
+		return nil, err
+	}
+
+	if err = tx.Commit(); err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %v", err)
+	}
+
+	return guild, nil
+}

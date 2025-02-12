@@ -29,4 +29,5 @@ type IDatabase interface {
 	GetGuildByID(ctx context.Context, guildId, userId int32) (*models.Guild, error)
 	GetGuildChannels(ctx context.Context, guildId, userId int32) ([]models.Channel, error)
 	GetGuildChannel(ctx context.Context, guildId, channelId, userId int32) (*models.Channel, error)
+	CreateGuild(ctx context.Context, guild *models.Guild, userId int32) (*models.Guild, error)
 }

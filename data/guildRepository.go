@@ -2,6 +2,8 @@ package data
 
 import (
 	"context"
+	"database/sql"
+	"fmt"
 	"tranquility/models"
 
 	"github.com/jmoiron/sqlx"
@@ -134,4 +136,53 @@ func (g *guildRepo) GetGuildByID(ctx context.Context, guildId, userId int32) (*m
 	}
 
 	return &output, nil
+}
+
+func (g *guildRepo) CreateGuild(ctx context.Context, guild *models.Guild, userId int32) (*sqlx.Tx, *models.Guild, error) {
+	var output models.Guild
+	tx, err := g.db.BeginTxx(ctx, nil)
+
+	if err != nil {
+		return nil, nil, err
+	}
+	err = tx.QueryRowxContext(
+		ctx,
+		`INSERT INTO guild (name, description, owner_id)
+		 VALUES ($1, $2, $3)
+		 RETURNING id, name, description, owner_id, created_date, updated_date;`,
+		guild.Name,
+		guild.Description,
+		userId,
+	).StructScan(&output)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return tx, &output, nil
+}
+
+func (g *guildRepo) AddGuildMember(ctx context.Context, guildId, userId int32, tx *sqlx.Tx) error {
+	query := `INSERT INTO member (user_id, guild_id, user_who_added) VALUES ($1, $2, $3) RETURNING id, user_id, guild_id, user_who_added, created_date, updated_date;`
+	var rows sql.Result
+	var err error
+
+	if tx != nil {
+		rows, err = tx.ExecContext(ctx, query, userId, guildId, userId)
+	} else {
+		rows, err = g.db.ExecContext(ctx, query, userId, guildId, userId)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	affected, err := rows.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected != 1 {
+		return fmt.Errorf("an invalid number rows were affected while inserting member")
+	}
+
+	return nil
 }

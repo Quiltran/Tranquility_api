@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"tranquility/app"
 	"tranquility/data"
+	"tranquility/models"
 	"tranquility/services"
 )
 
@@ -24,6 +25,7 @@ func (g *Guild) RegisterRoutes(app *app.App) {
 	app.AddSecureRoute("GET", "/api/guild/{guildId}", g.getGuild)
 	app.AddSecureRoute("GET", "/api/guild/{guildId}/channel", g.getGuildChannels)
 	app.AddSecureRoute("GET", "/api/guild/{guildId}/channel/{channelId}", g.getGuildChannel)
+	app.AddSecureRoute("POST", "/api/guild", g.createGuild)
 }
 
 func (g *Guild) getAllGuilds(w http.ResponseWriter, r *http.Request) {
@@ -176,6 +178,31 @@ func (g *Guild) getGuildChannel(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err = writeJsonBody(w, channel); err != nil {
+		handleError(w, g.logger, err, nil, http.StatusInternalServerError, "error")
+		return
+	}
+}
+
+func (g *Guild) createGuild(w http.ResponseWriter, r *http.Request) {
+	claims, err := getClaims(r)
+	if err != nil {
+		handleError(w, g.logger, err, nil, http.StatusUnauthorized, "error")
+		return
+	}
+
+	body, err := getJsonBody[models.Guild](r)
+	if err != nil {
+		handleError(w, g.logger, err, nil, http.StatusBadRequest, "warning")
+		return
+	}
+
+	guild, err := g.database.CreateGuild(r.Context(), body, claims.ID)
+	if err != nil {
+		handleError(w, g.logger, err, nil, http.StatusInternalServerError, "error")
+		return
+	}
+
+	if err = writeJsonBody(w, guild); err != nil {
 		handleError(w, g.logger, err, nil, http.StatusInternalServerError, "error")
 		return
 	}
