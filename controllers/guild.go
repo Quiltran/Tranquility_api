@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"database/sql"
+	"fmt"
 	"net/http"
 	"strconv"
 	"tranquility/app"
@@ -26,6 +27,7 @@ func (g *Guild) RegisterRoutes(app *app.App) {
 	app.AddSecureRoute("GET", "/api/guild/{guildId}/channel", g.getGuildChannels)
 	app.AddSecureRoute("GET", "/api/guild/{guildId}/channel/{channelId}", g.getGuildChannel)
 	app.AddSecureRoute("POST", "/api/guild", g.createGuild)
+	app.AddSecureRoute("POST", "/api/guild/{guildId}/channel", g.createChannel)
 }
 
 func (g *Guild) getAllGuilds(w http.ResponseWriter, r *http.Request) {
@@ -205,5 +207,40 @@ func (g *Guild) createGuild(w http.ResponseWriter, r *http.Request) {
 	if err = writeJsonBody(w, guild); err != nil {
 		handleError(w, g.logger, err, nil, http.StatusInternalServerError, "error")
 		return
+	}
+}
+
+func (g *Guild) createChannel(w http.ResponseWriter, r *http.Request) {
+	claims, err := getClaims(r)
+	if err != nil {
+		handleError(w, g.logger, err, nil, http.StatusUnauthorized, "error")
+		return
+	}
+
+	body, err := getJsonBody[models.Channel](r)
+	if err != nil {
+		handleError(w, g.logger, err, nil, http.StatusBadRequest, "warning")
+		return
+	}
+
+	guildId, err := strconv.Atoi(r.PathValue("guildId"))
+	if err != nil || body.GuildId != int32(guildId) {
+		handleError(w, g.logger, err, nil, http.StatusBadRequest, "warning")
+		return
+	}
+
+	channel, err := g.database.CreateChannel(r.Context(), body, claims.ID)
+	if err != nil {
+		if err == data.ErrUserLacksPermission {
+			err = fmt.Errorf("an error occurred while %s creating a channel: %v", claims.Username, err)
+			handleError(w, g.logger, err, nil, http.StatusUnauthorized, "warning")
+			return
+		}
+		handleError(w, g.logger, err, nil, http.StatusInternalServerError, "error")
+		return
+	}
+
+	if err = writeJsonBody(w, channel); err != nil {
+		handleError(w, g.logger, err, nil, http.StatusInternalServerError, "error")
 	}
 }

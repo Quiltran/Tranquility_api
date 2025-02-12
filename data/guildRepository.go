@@ -3,10 +3,15 @@ package data
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"tranquility/models"
 
 	"github.com/jmoiron/sqlx"
+)
+
+var (
+	ErrUserLacksPermission = errors.New("the user doesn't have valid permissions")
 )
 
 type guildRepo struct {
@@ -185,4 +190,25 @@ func (g *guildRepo) AddGuildMember(ctx context.Context, guildId, userId int32, t
 	}
 
 	return nil
+}
+
+func (g *guildRepo) CreateChannel(ctx context.Context, channel *models.Channel, userId int32) (*models.Channel, error) {
+	var output models.Channel
+	err := g.db.QueryRowxContext(
+		ctx,
+		`INSERT INTO channel (name, guild_id) SELECT $1, $2
+		 WHERE EXISTS (SELECT 1 FROM member WHERE guild_id = $2 AND user_id = $3)
+         RETURNING id, name, message_count, guild_id, created_date, updated_date;`,
+		channel.Name,
+		channel.GuildId,
+		userId,
+	).StructScan(&output)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ErrUserLacksPermission
+		}
+		return nil, err
+	}
+
+	return &output, nil
 }
