@@ -212,3 +212,21 @@ func (g *guildRepo) CreateChannel(ctx context.Context, channel *models.Channel, 
 
 	return &output, nil
 }
+
+func (g *guildRepo) CreateMember(ctx context.Context, member *models.Member) (*models.Member, error) {
+	var output models.Member
+	err := g.db.QueryRowxContext(
+		ctx,
+		`INSERT INTO member (user_id, guild_id, user_who_added)
+		 VALUES ($1, $2, $3)
+		 RETURNING id, user_id, guild_id, user_who_added, created_date, updated_date;`,
+		&member.UserId,
+		&member.GuildId,
+		&member.UserWhoAdded,
+	).StructScan(&output)
+	if err != nil {
+		return nil, err
+	}
+
+	return &output, nil
+}

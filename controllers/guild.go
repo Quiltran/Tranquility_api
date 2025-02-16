@@ -28,6 +28,7 @@ func (g *Guild) RegisterRoutes(app *app.App) {
 	app.AddSecureRoute("GET", "/api/guild/{guildId}/channel/{channelId}", g.getGuildChannel)
 	app.AddSecureRoute("POST", "/api/guild", g.createGuild)
 	app.AddSecureRoute("POST", "/api/guild/{guildId}/channel", g.createChannel)
+	app.AddSecureRoute("POST", "/api/guild/{guildId}/member", g.createMember)
 }
 
 func (g *Guild) getAllGuilds(w http.ResponseWriter, r *http.Request) {
@@ -241,6 +242,31 @@ func (g *Guild) createChannel(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err = writeJsonBody(w, channel); err != nil {
+		handleError(w, g.logger, err, nil, http.StatusInternalServerError, "error")
+	}
+}
+
+func (g *Guild) createMember(w http.ResponseWriter, r *http.Request) {
+	claims, err := getClaims(r)
+	if err != nil {
+		handleError(w, g.logger, err, nil, http.StatusUnauthorized, "error")
+		return
+	}
+
+	body, err := getJsonBody[models.Member](r)
+	if err != nil {
+		handleError(w, g.logger, err, nil, http.StatusBadRequest, "warning")
+		return
+	}
+	body.UserWhoAdded = claims.ID
+
+	newMember, err := g.database.CreateMember(r.Context(), body)
+	if err != nil {
+		handleError(w, g.logger, err, nil, http.StatusInternalServerError, "error")
+		return
+	}
+
+	if err = writeJsonBody(w, newMember); err != nil {
 		handleError(w, g.logger, err, nil, http.StatusInternalServerError, "error")
 	}
 }
