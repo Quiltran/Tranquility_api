@@ -260,8 +260,22 @@ func (g *Guild) createMember(w http.ResponseWriter, r *http.Request) {
 	}
 	body.UserWhoAdded = claims.ID
 
+	guildId, err := strconv.ParseInt(r.PathValue("guildId"), 10, 32)
+	if err != nil {
+		handleError(w, g.logger, err, nil, http.StatusBadRequest, "warning")
+		return
+	}
+	if int32(guildId) != int32(body.GuildId) {
+		handleError(w, g.logger, fmt.Errorf("user did not match path value with body value while adding member"), nil, http.StatusBadRequest, "warning")
+		return
+	}
+
 	newMember, err := g.database.CreateMember(r.Context(), body)
 	if err != nil {
+		if err == data.ErrDuplicateMember {
+			handleError(w, g.logger, err, nil, http.StatusBadRequest, "warning", err.Error())
+			return
+		}
 		handleError(w, g.logger, err, nil, http.StatusInternalServerError, "error")
 		return
 	}

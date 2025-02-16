@@ -8,10 +8,12 @@ import (
 	"tranquility/models"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/lib/pq"
 )
 
 var (
 	ErrUserLacksPermission = errors.New("the user doesn't have valid permissions")
+	ErrDuplicateMember     = errors.New("the user is already a part of the guild")
 )
 
 type guildRepo struct {
@@ -225,6 +227,12 @@ func (g *guildRepo) CreateMember(ctx context.Context, member *models.Member) (*m
 		&member.UserWhoAdded,
 	).StructScan(&output)
 	if err != nil {
+		var pgErr *pq.Error
+		if errors.As(err, &pgErr) {
+			if pgErr.Code == "23505" {
+				return nil, ErrDuplicateMember
+			}
+		}
 		return nil, err
 	}
 

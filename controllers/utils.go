@@ -67,7 +67,7 @@ func writeJsonBody[T any](w http.ResponseWriter, body T) error {
 	return json.NewEncoder(w).Encode(body)
 }
 
-func handleError(w http.ResponseWriter, logger services.Logger, err error, claims *services.Claims, code int, logLevel string) {
+func handleError(w http.ResponseWriter, logger services.Logger, err error, claims *services.Claims, code int, logLevel string, message ...string) {
 	if claims == nil {
 		claims = &services.Claims{
 			Username: "Anonymous",
@@ -79,5 +79,10 @@ func handleError(w http.ResponseWriter, logger services.Logger, err error, claim
 	case "warning":
 		logger.ERROR(fmt.Sprintf("%s encountered warning: %v", claims.Username, err))
 	}
-	http.Error(w, http.StatusText(code), code)
+
+	responseText := http.StatusText(code)
+	if len(message) > 0 {
+		responseText = message[0]
+	}
+	http.Error(w, responseText, code)
 }
