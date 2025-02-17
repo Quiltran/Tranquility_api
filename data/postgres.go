@@ -20,6 +20,7 @@ type Postgres struct {
 	authRepo
 	attachmentRepo
 	guildRepo
+	messageRepo
 	fileHandler *services.FileHandler
 }
 
@@ -33,6 +34,7 @@ func CreatePostgres(connectionString string, fileHandler *services.FileHandler) 
 		authRepo:       authRepo{db},
 		attachmentRepo: attachmentRepo{db},
 		guildRepo:      guildRepo{db},
+		messageRepo:    messageRepo{db},
 		fileHandler:    fileHandler,
 	}, nil
 }

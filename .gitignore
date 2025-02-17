@@ -28,3 +28,4 @@ go.work.sum
 *.log
 # test folder that holds uploads
 /uploads
+/.vscode

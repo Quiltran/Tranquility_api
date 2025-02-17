@@ -48,6 +48,10 @@ func main() {
 		logger,
 		database,
 	).RegisterRoutes(&server)
+	controllers.NewMessageController(
+		logger,
+		database,
+	).RegisterRoutes(&server)
 
 	mux := middleware.RequestLog(server, logger)
 

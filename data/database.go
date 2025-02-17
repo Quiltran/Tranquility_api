@@ -32,4 +32,5 @@ type IDatabase interface {
 	CreateGuild(ctx context.Context, guild *models.Guild, userId int32) (*models.Guild, error)
 	CreateChannel(ctx context.Context, channel *models.Channel, userId int32) (*models.Channel, error)
 	CreateMember(ctx context.Context, member *models.Member) (*models.Member, error)
+	GetChannelMessages(ctx context.Context, userId, guildId, channelId, pageNumber int32) ([]models.Message, error)
 }
