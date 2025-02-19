@@ -71,13 +71,17 @@ func (ws *WebsocketServer) handleCommand(command models.WebsocketCommand) error 
 }
 
 func (ws *WebsocketServer) Run() {
-	select {
-	case <-ws.shutdownContext.Done():
-		return
-	case command := <-ws.commandChannel:
-		ws.logger.INFO(fmt.Sprintf("Websocket received command from %d", command.UserId))
-		if err := ws.handleCommand(command); err != nil {
-			fmt.Println("error handling command in websocket")
+	ws.logger.INFO("Websocket server has started...")
+	for {
+		select {
+		case <-ws.shutdownContext.Done():
+			ws.logger.INFO("Websocket server is shutting down...")
+			return
+		case command := <-ws.commandChannel:
+			ws.logger.INFO(fmt.Sprintf("Websocket received command from %d", command.UserId))
+			if err := ws.handleCommand(command); err != nil {
+				fmt.Println("error handling command in websocket")
+			}
 		}
 	}
 }
