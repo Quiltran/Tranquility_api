@@ -70,7 +70,7 @@ func (ws *WebsocketServer) handleCommand(command models.WebsocketCommand) error 
 	return nil
 }
 
-func (ws *WebsocketServer) Run(ctx context.Context) {
+func (ws *WebsocketServer) Run() {
 	select {
 	case <-ws.shutdownContext.Done():
 		return
