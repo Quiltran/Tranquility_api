@@ -1,22 +1,22 @@
 package models
 
 type WebsocketResponse interface {
-	Message
+	WebsocketData()
 }
 
-type WebsocketCommand[T WebsocketResponse] struct {
+type WebsocketCommand struct {
 	Type               string
 	UserId             int32
-	Message            T
-	Channel            chan<- T
+	Message            WebsocketResponse
+	Channel            chan<- WebsocketResponse
 	AcknowledgeChannel chan<- error
 }
 
-func NewWebsocketConnectCommand[T WebsocketResponse](userId int32) (*WebsocketCommand[T], <-chan T, <-chan error) {
+func NewWebsocketConnectCommand(userId int32) (*WebsocketCommand, <-chan WebsocketResponse, <-chan error) {
 	errorChannel := make(chan error)
-	communicationChannel := make(chan T)
-	var zero T
-	return &WebsocketCommand[T]{
+	communicationChannel := make(chan WebsocketResponse)
+	var zero WebsocketResponse
+	return &WebsocketCommand{
 			Type:               "connect",
 			UserId:             userId,
 			Message:            zero,
@@ -27,10 +27,10 @@ func NewWebsocketConnectCommand[T WebsocketResponse](userId int32) (*WebsocketCo
 		errorChannel
 }
 
-func NewWebsocketDisconnectCommand[T WebsocketResponse](userId int32) (*WebsocketCommand[T], <-chan error) {
+func NewWebsocketDisconnectCommand(userId int32) (*WebsocketCommand, <-chan error) {
 	errorChannel := make(chan error)
-	var zero T
-	return &WebsocketCommand[T]{
+	var zero WebsocketResponse
+	return &WebsocketCommand{
 			Type:               "disconnect",
 			UserId:             userId,
 			Message:            zero,
@@ -40,10 +40,10 @@ func NewWebsocketDisconnectCommand[T WebsocketResponse](userId int32) (*Websocke
 		errorChannel
 }
 
-func NewWebsocketMessageCommand[T WebsocketResponse](userId int32, data T) (*WebsocketCommand[T], <-chan error) {
+func NewWebsocketMessageCommand(userId int32, data WebsocketResponse) (*WebsocketCommand, <-chan error) {
 	errorChannel := make(chan error)
-	var zero T
-	return &WebsocketCommand[T]{
+	var zero WebsocketResponse
+	return &WebsocketCommand{
 			Type:               "message",
 			UserId:             userId,
 			Message:            zero,

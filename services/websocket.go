@@ -7,24 +7,24 @@ import (
 	"tranquility/models"
 )
 
-type WebsocketServer[T models.WebsocketResponse] struct {
+type WebsocketServer struct {
 	mutex           sync.Mutex
-	users           map[int32]chan<- T
-	commandChannel  chan models.WebsocketCommand[T]
+	users           map[int32]chan<- models.WebsocketResponse
+	commandChannel  chan models.WebsocketCommand
 	logger          Logger
 	shutdownContext context.Context
 }
 
-func NewWebsocketServer[T models.WebsocketResponse](ctx context.Context, logger Logger) *WebsocketServer[T] {
-	return &WebsocketServer[T]{
-		users:           make(map[int32]chan<- T),
-		commandChannel:  make(chan models.WebsocketCommand[T]),
+func NewWebsocketServer(ctx context.Context, logger Logger) *WebsocketServer {
+	return &WebsocketServer{
+		users:           make(map[int32]chan<- models.WebsocketResponse),
+		commandChannel:  make(chan models.WebsocketCommand),
 		logger:          logger,
 		shutdownContext: ctx,
 	}
 }
 
-func (ws *WebsocketServer[T]) sendSystemMessage(data T) {
+func (ws *WebsocketServer) sendSystemMessage(data models.WebsocketResponse) {
 	ws.mutex.Lock()
 	defer ws.mutex.Unlock()
 	// This channel send is blocking.
@@ -34,14 +34,14 @@ func (ws *WebsocketServer[T]) sendSystemMessage(data T) {
 	}
 }
 
-func (ws *WebsocketServer[T]) connect(userId int32, tx chan<- T) {
+func (ws *WebsocketServer) connect(userId int32, tx chan<- models.WebsocketResponse) {
 	ws.mutex.Lock()
 	defer ws.mutex.Unlock()
 	ws.logger.INFO(fmt.Sprintf("Adding %d to connections", userId))
 	ws.users[userId] = tx
 }
 
-func (ws *WebsocketServer[T]) disconnect(userId int32) error {
+func (ws *WebsocketServer) disconnect(userId int32) error {
 	ws.mutex.Lock()
 	defer ws.mutex.Unlock()
 	if _, ok := ws.users[userId]; !ok {
@@ -53,7 +53,7 @@ func (ws *WebsocketServer[T]) disconnect(userId int32) error {
 	return nil
 }
 
-func (ws *WebsocketServer[T]) handleCommand(command models.WebsocketCommand[T]) error {
+func (ws *WebsocketServer) handleCommand(command models.WebsocketCommand) error {
 	switch command.Type {
 	case "connect":
 		ws.connect(command.UserId, command.Channel)
@@ -70,7 +70,7 @@ func (ws *WebsocketServer[T]) handleCommand(command models.WebsocketCommand[T]) 
 	return nil
 }
 
-func (ws *WebsocketServer[T]) Run(ctx context.Context) {
+func (ws *WebsocketServer) Run(ctx context.Context) {
 	select {
 	case <-ws.shutdownContext.Done():
 		return
@@ -82,18 +82,18 @@ func (ws *WebsocketServer[T]) Run(ctx context.Context) {
 	}
 }
 
-func (ws *WebsocketServer[T]) NewHandler() *WebsocketHandler[T] {
-	return &WebsocketHandler[T]{
+func (ws *WebsocketServer) NewHandler() *WebsocketHandler {
+	return &WebsocketHandler{
 		commandChannel: ws.commandChannel,
 	}
 }
 
-type WebsocketHandler[T models.WebsocketResponse] struct {
-	commandChannel chan<- models.WebsocketCommand[T]
+type WebsocketHandler struct {
+	commandChannel chan<- models.WebsocketCommand
 }
 
-func (wh *WebsocketHandler[T]) Connect(userId int32) (<-chan T, error) {
-	command, communicationListener, errorChannel := models.NewWebsocketConnectCommand[T](userId)
+func (wh *WebsocketHandler) Connect(userId int32) (<-chan models.WebsocketResponse, error) {
+	command, communicationListener, errorChannel := models.NewWebsocketConnectCommand(userId)
 
 	wh.commandChannel <- *command
 
@@ -103,8 +103,8 @@ func (wh *WebsocketHandler[T]) Connect(userId int32) (<-chan T, error) {
 	return communicationListener, nil
 }
 
-func (wh *WebsocketHandler[T]) Disconnect(userId int32) error {
-	command, errorChannel := models.NewWebsocketDisconnectCommand[T](userId)
+func (wh *WebsocketHandler) Disconnect(userId int32) error {
+	command, errorChannel := models.NewWebsocketDisconnectCommand(userId)
 
 	wh.commandChannel <- *command
 
@@ -114,7 +114,7 @@ func (wh *WebsocketHandler[T]) Disconnect(userId int32) error {
 	return nil
 }
 
-func (wh *WebsocketHandler[T]) SendMessage(userId int32, data T) error {
+func (wh *WebsocketHandler) SendMessage(userId int32, data models.WebsocketResponse) error {
 	command, errorChannel := models.NewWebsocketMessageCommand(userId, data)
 
 	wh.commandChannel <- *command
