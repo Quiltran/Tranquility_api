@@ -18,6 +18,7 @@ type IDatabase interface {
 	Login(ctx context.Context, cred *models.AuthUser) (*models.AuthUser, error)
 	Register(ctx context.Context, user *models.AuthUser) (*models.AuthUser, error)
 	RefreshToken(ctx context.Context, user *models.AuthUser) (*models.AuthUser, error)
+	WebsocketLogin(ctx context.Context, userId int32, websocketToken string) (*models.AuthUser, error)
 
 	// Attachment
 	CreateAttachment(ctx context.Context, file *multipart.File, attachment *models.Attachment) (*models.Attachment, error)
