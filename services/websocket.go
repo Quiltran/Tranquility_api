@@ -80,7 +80,7 @@ func (ws *WebsocketServer) Run() {
 		case command := <-ws.commandChannel:
 			ws.logger.INFO(fmt.Sprintf("Websocket received command from %d", command.UserId))
 			if err := ws.handleCommand(command); err != nil {
-				fmt.Println("error handling command in websocket")
+				ws.logger.ERROR(fmt.Sprintf("an error occurred while handling websocket command: %+v", command))
 			}
 		}
 	}
