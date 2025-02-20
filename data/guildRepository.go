@@ -4,11 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"tranquility/models"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/lib/pq"
 )
 
 var (
@@ -168,32 +166,6 @@ func (g *guildRepo) CreateGuild(ctx context.Context, guild *models.Guild, userId
 	return tx, &output, nil
 }
 
-func (g *guildRepo) AddGuildMember(ctx context.Context, guildId, userId int32, tx *sqlx.Tx) error {
-	query := `INSERT INTO member (user_id, guild_id, user_who_added) VALUES ($1, $2, $3) RETURNING id, user_id, guild_id, user_who_added, created_date, updated_date;`
-	var rows sql.Result
-	var err error
-
-	if tx != nil {
-		rows, err = tx.ExecContext(ctx, query, userId, guildId, userId)
-	} else {
-		rows, err = g.db.ExecContext(ctx, query, userId, guildId, userId)
-	}
-
-	if err != nil {
-		return err
-	}
-
-	affected, err := rows.RowsAffected()
-	if err != nil {
-		return err
-	}
-	if affected != 1 {
-		return fmt.Errorf("an invalid number rows were affected while inserting member")
-	}
-
-	return nil
-}
-
 func (g *guildRepo) CreateChannel(ctx context.Context, channel *models.Channel, userId int32) (*models.Channel, error) {
 	var output models.Channel
 	err := g.db.QueryRowxContext(
@@ -208,30 +180,6 @@ func (g *guildRepo) CreateChannel(ctx context.Context, channel *models.Channel, 
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ErrUserLacksPermission
-		}
-		return nil, err
-	}
-
-	return &output, nil
-}
-
-func (g *guildRepo) CreateMember(ctx context.Context, member *models.Member) (*models.Member, error) {
-	var output models.Member
-	err := g.db.QueryRowxContext(
-		ctx,
-		`INSERT INTO member (user_id, guild_id, user_who_added)
-		 VALUES ($1, $2, $3)
-		 RETURNING id, user_id, guild_id, user_who_added, created_date, updated_date;`,
-		&member.UserId,
-		&member.GuildId,
-		&member.UserWhoAdded,
-	).StructScan(&output)
-	if err != nil {
-		var pgErr *pq.Error
-		if errors.As(err, &pgErr) {
-			if pgErr.Code == "23505" {
-				return nil, ErrDuplicateMember
-			}
 		}
 		return nil, err
 	}

@@ -21,11 +21,12 @@ type Postgres struct {
 	attachmentRepo
 	guildRepo
 	messageRepo
+	memberRepo
 	fileHandler *services.FileHandler
 }
 
 func CreatePostgres(connectionString string, fileHandler *services.FileHandler) (*Postgres, error) {
-	db, err := sqlx.Connect("postgres", "user=postgres password=server dbname=tranquility sslmode=disable")
+	db, err := sqlx.Connect("postgres", connectionString)
 	if err != nil {
 		return nil, err
 	}
@@ -35,6 +36,7 @@ func CreatePostgres(connectionString string, fileHandler *services.FileHandler) 
 		attachmentRepo: attachmentRepo{db},
 		guildRepo:      guildRepo{db},
 		messageRepo:    messageRepo{db},
+		memberRepo:     memberRepo{db},
 		fileHandler:    fileHandler,
 	}, nil
 }
@@ -160,7 +162,7 @@ func (p *Postgres) CreateGuild(ctx context.Context, guild *models.Guild, userId 
 		return nil, err
 	}
 
-	if err = p.guildRepo.AddGuildMember(ctx, guild.ID, userId, tx); err != nil {
+	if err = p.addGuildMember(ctx, guild.ID, userId, tx); err != nil {
 		if rbErr := tx.Rollback(); rbErr != nil {
 			return nil, fmt.Errorf("rollback error: %v, original error: %v", rbErr, err)
 		}
