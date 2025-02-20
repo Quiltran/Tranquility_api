@@ -11,3 +11,5 @@ type Message struct {
 	CreatedDate time.Time `json:"created_date,omitempty"`
 	UpdatedDate time.Time `json:"updated_date,omitempty"`
 }
+
+func (m Message) WebsocketData() {}

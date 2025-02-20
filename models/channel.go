@@ -10,3 +10,5 @@ type Channel struct {
 	CreatedDate  time.Time `json:"created_date,omitempty" db:"created_date"`
 	UpdatedDate  time.Time `json:"updated_date,omitempty" db:"updated_date"`
 }
+
+func (m Channel) WebsocketData() {}
