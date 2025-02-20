@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"tranquility/middleware"
 	"tranquility/services"
 )
 
@@ -144,17 +146,18 @@ func TestWriteJsonBody(t *testing.T) {
 		{
 			name:        "Not a struct",
 			body:        "not a struct",
-			expectedErr: "tried writing body to request but it was not a struct",
+			expectedErr: "tried writing body to request but it was not a struct or array: string",
 		},
 		{
-			name:        "Slice",
-			body:        []int{1, 2, 3},
-			expectedErr: "tried writing body to request but it was not a struct",
+			name:                "Slice",
+			body:                []int{1, 2, 3},
+			expectedBody:        "[1, 2, 3]",
+			expectedContentType: "application/json",
 		},
 		{
 			name:        "Map",
 			body:        map[string]int{"a": 1},
-			expectedErr: "tried writing body to request but it was not a struct",
+			expectedErr: "tried writing body to request but it was not a struct or array: map",
 		},
 	}
 
@@ -204,10 +207,14 @@ func TestHandleError(t *testing.T) {
 	// Create a mock logger
 	mockLogger := &MockLogger{}
 
+	var requestWId http.Request = *httptest.NewRequest("GET", "/", nil).WithContext(context.WithValue(context.Background(), middleware.RequestID, "123"))
+	var requestWOId http.Request = *httptest.NewRequest("GET", "/", nil)
+
 	// Create test cases
 	tests := []struct {
 		name     string
 		w        *httptest.ResponseRecorder
+		r        *http.Request
 		err      error
 		claims   *services.Claims
 		code     int
@@ -218,38 +225,52 @@ func TestHandleError(t *testing.T) {
 		{
 			name:     "error with valid claims",
 			w:        httptest.NewRecorder(),
+			r:        &requestWId,
 			err:      errors.New("test error"),
 			claims:   &services.Claims{Username: "testUser"},
 			code:     http.StatusBadRequest,
 			logLevel: "ERROR",
-			wantLog:  "testUser encountered error: test error",
+			wantLog:  "requestId: 123: testUser encountered error: test error",
 			wantCode: http.StatusBadRequest,
 		},
 		{
 			name:     "warning with nil claims",
 			w:        httptest.NewRecorder(),
+			r:        &requestWId,
 			err:      errors.New("test warning"),
 			claims:   nil,
 			code:     http.StatusBadRequest,
 			logLevel: "WARNING",
-			wantLog:  "Anonymous encountered warning: test warning",
+			wantLog:  "requestId: 123: Anonymous encountered warning: test warning",
 			wantCode: http.StatusBadRequest,
 		},
 		{
 			name:     "different status code",
 			w:        httptest.NewRecorder(),
+			r:        &requestWId,
 			err:      errors.New("internal error"),
 			claims:   &services.Claims{Username: "testUser"},
 			code:     http.StatusInternalServerError,
 			logLevel: "ERROR",
-			wantLog:  "testUser encountered error: internal error",
+			wantLog:  "requestId: 123: testUser encountered error: internal error",
+			wantCode: http.StatusInternalServerError,
+		},
+		{
+			name:     "different status code",
+			w:        httptest.NewRecorder(),
+			r:        &requestWOId,
+			err:      errors.New("internal error"),
+			claims:   &services.Claims{Username: "testUser"},
+			code:     http.StatusInternalServerError,
+			logLevel: "ERROR",
+			wantLog:  "requestId: a request was made without a request id: testUser encountered error: internal error",
 			wantCode: http.StatusInternalServerError,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			handleError(tt.w, mockLogger, tt.err, tt.claims, tt.code, tt.logLevel)
+			handleError(tt.w, tt.r, mockLogger, tt.err, tt.claims, tt.code, tt.logLevel)
 
 			// Check status code
 			if tt.w.Code != tt.wantCode {

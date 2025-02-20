@@ -46,7 +46,7 @@ func (wc *WebsocketController) Websocket(w http.ResponseWriter, r *http.Request)
 
 	userId, err := strconv.ParseInt(r.PathValue("id"), 10, 32)
 	if err != nil {
-		handleError(w, wc.logger, err, nil, http.StatusBadRequest, "warning")
+		handleError(w, r, wc.logger, err, nil, http.StatusBadRequest, "warning")
 		return
 	}
 	websocketToken := r.PathValue("token")
@@ -54,10 +54,10 @@ func (wc *WebsocketController) Websocket(w http.ResponseWriter, r *http.Request)
 	user, err := wc.db.WebsocketLogin(ctx, int32(userId), websocketToken)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			handleError(w, wc.logger, err, nil, http.StatusUnauthorized, "warning")
+			handleError(w, r, wc.logger, err, nil, http.StatusUnauthorized, "warning")
 			return
 		}
-		handleError(w, wc.logger, err, nil, http.StatusInternalServerError, "error")
+		handleError(w, r, wc.logger, err, nil, http.StatusInternalServerError, "error")
 		return
 	}
 

@@ -29,13 +29,13 @@ func (a *Attachment) RegisterRoutes(app *app.App) {
 func (a *Attachment) uploadAttachment(w http.ResponseWriter, r *http.Request) {
 	claims, err := getClaims(r)
 	if err != nil {
-		handleError(w, a.logger, err, nil, http.StatusBadRequest, "error")
+		handleError(w, r, a.logger, err, nil, http.StatusBadRequest, "error")
 		return
 	}
 
 	err = r.ParseMultipartForm(10 * 1024)
 	if err != nil {
-		handleError(w, a.logger, err, claims, http.StatusInternalServerError, "error")
+		handleError(w, r, a.logger, err, claims, http.StatusInternalServerError, "error")
 		return
 	}
 
@@ -49,14 +49,14 @@ func (a *Attachment) uploadAttachment(w http.ResponseWriter, r *http.Request) {
 			code = http.StatusBadRequest
 			level = "WARNING"
 		}
-		handleError(w, a.logger, err, claims, code, level)
+		handleError(w, r, a.logger, err, claims, code, level)
 		return
 	}
 	defer file.Close()
 
 	output, err := a.database.CreateAttachment(r.Context(), &file, attachment)
 	if err != nil {
-		handleError(w, a.logger, err, claims, http.StatusBadRequest, "error")
+		handleError(w, r, a.logger, err, claims, http.StatusBadRequest, "error")
 		return
 	}
 
@@ -65,7 +65,7 @@ func (a *Attachment) uploadAttachment(w http.ResponseWriter, r *http.Request) {
 	output.MimeType = ""
 	w.WriteHeader(http.StatusCreated)
 	if err = writeJsonBody(w, *output); err != nil {
-		handleError(w, a.logger, err, claims, http.StatusInternalServerError, "error")
+		handleError(w, r, a.logger, err, claims, http.StatusInternalServerError, "error")
 		return
 	}
 }
@@ -73,27 +73,27 @@ func (a *Attachment) uploadAttachment(w http.ResponseWriter, r *http.Request) {
 func (a *Attachment) deleteAttachment(w http.ResponseWriter, r *http.Request) {
 	claims, err := getClaims(r)
 	if err != nil {
-		handleError(w, a.logger, err, nil, http.StatusBadRequest, "error")
+		handleError(w, r, a.logger, err, nil, http.StatusBadRequest, "error")
 		return
 	}
 
 	fileIdValue := r.PathValue("id")
 	if fileIdValue == "" {
-		handleError(w, a.logger, fmt.Errorf("invalid file id was provided to be deleted"), claims, http.StatusBadRequest, "warning")
+		handleError(w, r, a.logger, fmt.Errorf("invalid file id was provided to be deleted"), claims, http.StatusBadRequest, "warning")
 		return
 	}
 	fileId, err := strconv.Atoi(fileIdValue)
 	if err != nil {
-		handleError(w, a.logger, err, claims, http.StatusInternalServerError, "error")
+		handleError(w, r, a.logger, err, claims, http.StatusInternalServerError, "error")
 		return
 	}
 
 	if err = a.database.DeleteAttachment(r.Context(), int32(fileId), claims.ID); err != nil {
 		switch {
 		case errors.Is(err, data.ErrAttachmentNotFound):
-			handleError(w, a.logger, err, claims, http.StatusBadRequest, "warning")
+			handleError(w, r, a.logger, err, claims, http.StatusBadRequest, "warning")
 		default:
-			handleError(w, a.logger, err, claims, http.StatusInternalServerError, "error")
+			handleError(w, r, a.logger, err, claims, http.StatusInternalServerError, "error")
 		}
 		return
 	}

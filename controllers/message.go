@@ -25,7 +25,7 @@ func (m *Message) RegisterRoutes(app *app.App) {
 func (m *Message) getChannelMessages(w http.ResponseWriter, r *http.Request) {
 	claims, err := getClaims(r)
 	if err != nil {
-		handleError(w, m.logger, err, nil, http.StatusUnauthorized, "error")
+		handleError(w, r, m.logger, err, nil, http.StatusUnauthorized, "error")
 		return
 	}
 
@@ -33,7 +33,7 @@ func (m *Message) getChannelMessages(w http.ResponseWriter, r *http.Request) {
 	channelId, channelErr := strconv.ParseInt(r.PathValue("channelId"), 10, 32)
 	pageNumber, pageNumErr := strconv.ParseInt(r.PathValue("pageNumber"), 10, 32)
 	if guildErr != nil || channelErr != nil || pageNumErr != nil {
-		handleError(w, m.logger, err, nil, http.StatusBadRequest, "warning")
+		handleError(w, r, m.logger, err, nil, http.StatusBadRequest, "warning")
 		return
 	}
 
@@ -46,15 +46,15 @@ func (m *Message) getChannelMessages(w http.ResponseWriter, r *http.Request) {
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			handleError(w, m.logger, err, nil, http.StatusBadRequest, "warning")
+			handleError(w, r, m.logger, err, nil, http.StatusBadRequest, "warning")
 			return
 		}
-		handleError(w, m.logger, err, nil, http.StatusInternalServerError, "error")
+		handleError(w, r, m.logger, err, nil, http.StatusInternalServerError, "error")
 		return
 	}
 
 	if err = writeJsonBody(w, messages); err != nil {
-		handleError(w, m.logger, err, nil, http.StatusInternalServerError, "error")
+		handleError(w, r, m.logger, err, nil, http.StatusInternalServerError, "error")
 		return
 	}
 }
