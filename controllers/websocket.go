@@ -113,6 +113,11 @@ func (wc *WebsocketController) Websocket(w http.ResponseWriter, r *http.Request)
 		case <-ping:
 			lastHeartbeat = time.Now()
 		case msg := <-incoming:
+			msg, err := wc.handleIncomingMessage(ctx, user, msg)
+			if err != nil {
+				wc.logger.ERROR(fmt.Sprintf("an error occurred while handling request: %v", err))
+				return
+			}
 			handler.SendMessage(user.ID, msg)
 		case err := <-errChan:
 			wc.logger.ERROR(fmt.Sprintf("error reading from websocket: %v", err))
@@ -158,4 +163,21 @@ func handleConnection(ctx context.Context, conn *websocket.Conn, limiter *rate.L
 	}
 
 	return false, nil
+}
+
+func (wc *WebsocketController) handleIncomingMessage(ctx context.Context, user *models.AuthUser, message *models.WebsocketMessage) (*models.WebsocketMessage, error) {
+
+	switch message.Type {
+	case "message":
+		output, err := wc.db.CreateMessage(ctx, message.Data.(*models.Message), user.ID)
+		if err != nil {
+			return nil, err
+		}
+		message.Data = output
+	default:
+		wc.logger.ERROR(fmt.Sprintf("an unknown message type was handled by handleIncomingMessage: %s", message.Type))
+		return nil, fmt.Errorf("an unknown message type was passed")
+	}
+
+	return message, nil
 }

@@ -69,3 +69,40 @@ func (m *messageRepo) GetChannelMessages(ctx context.Context, userId, guildId, c
 
 	return output, nil
 }
+
+func (m *messageRepo) CreateMessage(ctx context.Context, message *models.Message, userId int32) (*models.Message, error) {
+	var output models.Message
+
+	err := m.db.QueryRowxContext(
+		ctx,
+		`WITH im AS (
+        INSERT INTO message (author_id, channel_id, content)
+        SELECT $1, $2, $3
+        WHERE EXISTS (
+            SELECT 1 FROM channel c
+            join member m on c.guild_id = m.guild_id
+            where m.user_id = $1 and c.id = $2
+        )
+        RETURNING id, channel_id, author_id, content, created_date, updated_date
+        )
+        SELECT
+            im.id,
+            im.channel_id,
+            a.username as author,
+            im.author_id,
+            im.content,
+            im.created_date,
+            im.updated_date
+        FROM im
+        JOIN auth a ON im.author_id = a.id`,
+		userId,
+		message.ChannelID,
+		message.Content,
+	).StructScan(&output)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &output, nil
+}
