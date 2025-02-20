@@ -37,7 +37,6 @@ func (ws *WebsocketServer) sendSystemMessage(data models.WebsocketMessage) {
 		ws.logger.ERROR(fmt.Sprintf("Error marshaling data: %+v", data))
 		return
 	}
-	fmt.Println(string(bytes))
 	for userId, conn := range ws.users {
 		ws.logger.INFO(fmt.Sprintf("Sending notification to %d", userId))
 		w, err := conn.Writer(ws.shutdownContext, 1)
@@ -47,12 +46,11 @@ func (ws *WebsocketServer) sendSystemMessage(data models.WebsocketMessage) {
 		}
 		defer w.Close()
 
-		x, err := w.Write(bytes)
+		_, err = w.Write(bytes)
 		if err != nil {
 			ws.logger.ERROR(fmt.Sprintf("Error writing to connection %d: %v", userId, err))
 			return
 		}
-		fmt.Println(x)
 		ws.logger.INFO(fmt.Sprintf("Notification sent %d", userId))
 	}
 }
@@ -88,7 +86,7 @@ func (ws *WebsocketServer) handleCommand(command models.WebsocketCommand) error 
 		ws.sendSystemMessage(*command.Message)
 		command.AcknowledgeChannel <- nil
 	default:
-		fmt.Println("Unknown command has been provided")
+		return fmt.Errorf("unknown command has been provided: %s", command.Type)
 	}
 	return nil
 }

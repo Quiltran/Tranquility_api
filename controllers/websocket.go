@@ -2,9 +2,11 @@ package controllers
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 	"tranquility/app"
 	"tranquility/data"
@@ -34,13 +36,30 @@ func NewWebsocketController(db data.IDatabase, logger services.Logger, websocket
 }
 
 func (wc *WebsocketController) RegisterRoutes(app *app.App) {
-	app.AddRoute("GET", "/ws", wc.echo)
+	app.AddRoute("GET", "/ws/{id}/{token}", wc.Websocket)
 }
 
-func (wc *WebsocketController) echo(w http.ResponseWriter, r *http.Request) {
+func (wc *WebsocketController) Websocket(w http.ResponseWriter, r *http.Request) {
 	limiter := rate.NewLimiter(rate.Every(time.Millisecond*100), 10)
 	ctx, cancel := context.WithCancel(r.Context())
 	defer cancel()
+
+	userId, err := strconv.ParseInt(r.PathValue("id"), 10, 32)
+	if err != nil {
+		handleError(w, wc.logger, err, nil, http.StatusBadRequest, "warning")
+		return
+	}
+	websocketToken := r.PathValue("token")
+
+	user, err := wc.db.WebsocketLogin(ctx, int32(userId), websocketToken)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			handleError(w, wc.logger, err, nil, http.StatusUnauthorized, "warning")
+			return
+		}
+		handleError(w, wc.logger, err, nil, http.StatusInternalServerError, "error")
+		return
+	}
 
 	c, err := websocket.Accept(w, r, nil)
 	if err != nil {
@@ -50,13 +69,13 @@ func (wc *WebsocketController) echo(w http.ResponseWriter, r *http.Request) {
 	defer c.CloseNow()
 
 	handler := wc.websocketServer.NewHandler()
-	err = handler.Connect(123, c)
+	err = handler.Connect(user.ID, c)
 	if err != nil {
 		wc.logger.ERROR(fmt.Sprintf("Error connecting user to websocket server: %v", err))
 		return
 	}
 	defer func() {
-		if err := handler.Disconnect(123); err != nil {
+		if err := handler.Disconnect(user.ID); err != nil {
 			wc.logger.ERROR(fmt.Sprintf("Error disconnecting user to websocket server: %v", err))
 		}
 	}()
@@ -94,9 +113,7 @@ func (wc *WebsocketController) echo(w http.ResponseWriter, r *http.Request) {
 		case <-ping:
 			lastHeartbeat = time.Now()
 		case msg := <-incoming:
-			fmt.Println("handler", msg)
-			handler.SendMessage(123, msg)
-			fmt.Println("Message from client:", msg)
+			handler.SendMessage(user.ID, msg)
 		case err := <-errChan:
 			wc.logger.ERROR(fmt.Sprintf("error reading from websocket: %v", err))
 			return

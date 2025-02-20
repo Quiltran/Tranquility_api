@@ -56,6 +56,7 @@ func (a *authRepo) WebsocketLogin(ctx context.Context, userId int32, websocketTo
 		`UPDATE auth SET websocket_token = md5(random()::text) WHERE id = $1 AND websocket_token = $2
 		RETURNING id, username, refresh_token, websocket_token;`,
 		userId,
+		websocketToken,
 	).StructScan(&output)
 	if err != nil {
 		return nil, err
