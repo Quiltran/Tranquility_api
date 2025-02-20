@@ -32,8 +32,12 @@ type IDatabase interface {
 	GetGuildChannel(ctx context.Context, guildId, channelId, userId int32) (*models.Channel, error)
 	CreateGuild(ctx context.Context, guild *models.Guild, userId int32) (*models.Guild, error)
 	CreateChannel(ctx context.Context, channel *models.Channel, userId int32) (*models.Channel, error)
-	CreateMember(ctx context.Context, member *models.Member) (*models.Member, error)
 	GetChannelMessages(ctx context.Context, userId, guildId, channelId, pageNumber int32) ([]models.Message, error)
+
+	// Member
+	CreateMember(ctx context.Context, member *models.Member) (*models.Member, error)
+	GetChannelMembers(ctx context.Context, channelId int32) (map[int32]bool, error)
+	GetGuildMembers(ctx context.Context, guildId int32) (map[int32]bool, error)
 
 	// Websocket
 	CreateMessage(context.Context, *models.Message, int32) (*models.Message, error)
