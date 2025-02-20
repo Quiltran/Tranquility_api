@@ -2,14 +2,19 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sync"
 	"tranquility/models"
+
+	"github.com/coder/websocket"
 )
 
 type WebsocketServer struct {
-	mutex           sync.Mutex
-	users           map[int32]chan<- models.WebsocketResponse
+	mutex sync.Mutex
+	// The channel here is for the server to data back to the handler
+	users map[int32]*websocket.Conn
+	// This is used for handlers to send commands to the server
 	commandChannel  chan models.WebsocketCommand
 	logger          Logger
 	shutdownContext context.Context
@@ -17,28 +22,46 @@ type WebsocketServer struct {
 
 func NewWebsocketServer(ctx context.Context, logger Logger) *WebsocketServer {
 	return &WebsocketServer{
-		users:           make(map[int32]chan<- models.WebsocketResponse),
+		users:           make(map[int32]*websocket.Conn),
 		commandChannel:  make(chan models.WebsocketCommand),
 		logger:          logger,
 		shutdownContext: ctx,
 	}
 }
 
-func (ws *WebsocketServer) sendSystemMessage(data models.WebsocketResponse) {
+func (ws *WebsocketServer) sendSystemMessage(data models.WebsocketMessage) {
 	ws.mutex.Lock()
 	defer ws.mutex.Unlock()
-	// This channel send is blocking.
-	for userId, c := range ws.users {
+	bytes, err := json.Marshal(data)
+	if err != nil {
+		ws.logger.ERROR(fmt.Sprintf("Error marshaling data: %+v", data))
+		return
+	}
+	fmt.Println(string(bytes))
+	for userId, conn := range ws.users {
 		ws.logger.INFO(fmt.Sprintf("Sending notification to %d", userId))
-		c <- data
+		w, err := conn.Writer(ws.shutdownContext, 1)
+		if err != nil {
+			ws.logger.ERROR(fmt.Sprintf("Error getting writer for connection %d: %v", userId, err))
+			return
+		}
+		defer w.Close()
+
+		x, err := w.Write(bytes)
+		if err != nil {
+			ws.logger.ERROR(fmt.Sprintf("Error writing to connection %d: %v", userId, err))
+			return
+		}
+		fmt.Println(x)
+		ws.logger.INFO(fmt.Sprintf("Notification sent %d", userId))
 	}
 }
 
-func (ws *WebsocketServer) connect(userId int32, tx chan<- models.WebsocketResponse) {
+func (ws *WebsocketServer) connect(userId int32, conn *websocket.Conn) {
 	ws.mutex.Lock()
 	defer ws.mutex.Unlock()
 	ws.logger.INFO(fmt.Sprintf("Adding %d to connections", userId))
-	ws.users[userId] = tx
+	ws.users[userId] = conn
 }
 
 func (ws *WebsocketServer) disconnect(userId int32) error {
@@ -56,13 +79,13 @@ func (ws *WebsocketServer) disconnect(userId int32) error {
 func (ws *WebsocketServer) handleCommand(command models.WebsocketCommand) error {
 	switch command.Type {
 	case "connect":
-		ws.connect(command.UserId, command.Channel)
+		ws.connect(command.UserId, command.Connection)
 		command.AcknowledgeChannel <- nil
 	case "disconnect":
 		err := ws.disconnect(command.UserId)
 		command.AcknowledgeChannel <- err
 	case "message":
-		ws.sendSystemMessage(command.Message)
+		ws.sendSystemMessage(*command.Message)
 		command.AcknowledgeChannel <- nil
 	default:
 		fmt.Println("Unknown command has been provided")
@@ -96,15 +119,15 @@ type WebsocketHandler struct {
 	commandChannel chan<- models.WebsocketCommand
 }
 
-func (wh *WebsocketHandler) Connect(userId int32) (<-chan models.WebsocketResponse, error) {
-	command, communicationListener, errorChannel := models.NewWebsocketConnectCommand(userId)
+func (wh *WebsocketHandler) Connect(userId int32, conn *websocket.Conn) error {
+	command, errorChannel := models.NewWebsocketConnectCommand(userId, conn)
 
 	wh.commandChannel <- *command
 
 	if err := <-errorChannel; err != nil {
-		return nil, err
+		return err
 	}
-	return communicationListener, nil
+	return nil
 }
 
 func (wh *WebsocketHandler) Disconnect(userId int32) error {
@@ -118,7 +141,7 @@ func (wh *WebsocketHandler) Disconnect(userId int32) error {
 	return nil
 }
 
-func (wh *WebsocketHandler) SendMessage(userId int32, data models.WebsocketResponse) error {
+func (wh *WebsocketHandler) SendMessage(userId int32, data *models.WebsocketMessage) error {
 	command, errorChannel := models.NewWebsocketMessageCommand(userId, data)
 
 	wh.commandChannel <- *command

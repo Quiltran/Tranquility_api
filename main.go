@@ -1,8 +1,7 @@
 package main
 
 import (
-	"fmt"
-	"log"
+	"context"
 	"net/http"
 	"tranquility/app"
 	"tranquility/config"
@@ -13,25 +12,28 @@ import (
 )
 
 func main() {
+	ctx, ctxCancel := context.WithCancel(context.Background())
+	defer ctxCancel()
+
 	logger, err := services.CreateLogger("Tranquility")
 	if err != nil {
-		log.Fatalln(err)
-		panic(1)
+		panic(err)
 	}
 
 	config, err := config.NewConfig()
 	if err != nil {
-		logger.ERROR(fmt.Errorf("error creating config: %v", err).Error())
-		panic(1)
+		panic(err)
 	}
 
 	fileHandler := services.NewFileHandler(config.UploadPath)
 
 	database, err := data.CreatePostgres(config.ConnectionString, fileHandler)
 	if err != nil {
-		logger.ERROR(fmt.Errorf("error creating connection to database: %v", err).Error())
-		panic(1)
+		panic(err)
 	}
+
+	websocketServer := services.NewWebsocketServer(ctx, logger)
+	go websocketServer.Run()
 
 	server := app.CreateApp(logger)
 
@@ -52,11 +54,15 @@ func main() {
 		logger,
 		database,
 	).RegisterRoutes(&server)
+	controllers.NewWebsocketController(
+		database,
+		logger,
+		websocketServer,
+	).RegisterRoutes(&server)
 
 	mux := middleware.RequestLog(server, logger)
 
 	if err := http.ListenAndServe(":8080", mux); err != nil {
-		log.Fatalln(err)
-		panic(1)
+		panic(err)
 	}
 }
