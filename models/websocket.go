@@ -7,10 +7,12 @@ import (
 	"github.com/coder/websocket"
 )
 
+// This interface determines what data can be sent as data over the websocket.
 type WebsocketMessageData interface {
 	WebsocketData()
 }
 
+// This is what's received over the websocket.
 type WebsocketMessageWrapper struct {
 	Type string          `json:"type"`
 	Data json.RawMessage `json:"data,omitempty"`
@@ -39,17 +41,19 @@ func (wm *WebsocketMessageWrapper) ToMessage() (*WebsocketMessage, error) {
 	return &WebsocketMessage{wm.Type, data}, nil
 }
 
+// This is what is used in the handler to process and send data to the websocket server.
 type WebsocketMessage struct {
 	Type string               `json:"type"`
 	Data WebsocketMessageData `json:"data,omitempty"`
 }
 
 type WebsocketCommand struct {
-	Type               string
-	UserId             int32
-	Message            *WebsocketMessage
-	Connection         *websocket.Conn
-	AcknowledgeChannel chan<- error
+	Type                string
+	UserId              int32
+	Message             *WebsocketMessage
+	Connection          *websocket.Conn
+	NotificationTargets map[int32]bool
+	AcknowledgeChannel  chan<- error
 }
 
 func NewWebsocketConnectCommand(userId int32, conn *websocket.Conn) (*WebsocketCommand, <-chan error) {
@@ -75,13 +79,14 @@ func NewWebsocketDisconnectCommand(userId int32) (*WebsocketCommand, <-chan erro
 		errorChannel
 }
 
-func NewWebsocketMessageCommand(userId int32, data *WebsocketMessage) (*WebsocketCommand, <-chan error) {
+func NewWebsocketMessageCommand(userId int32, data *WebsocketMessage, targets map[int32]bool) (*WebsocketCommand, <-chan error) {
 	errorChannel := make(chan error)
 	return &WebsocketCommand{
-			Type:               "message",
-			UserId:             userId,
-			Message:            data,
-			AcknowledgeChannel: errorChannel,
+			Type:                "message",
+			UserId:              userId,
+			Message:             data,
+			NotificationTargets: targets,
+			AcknowledgeChannel:  errorChannel,
 		},
 		errorChannel
 }

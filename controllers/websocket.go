@@ -113,12 +113,17 @@ func (wc *WebsocketController) Websocket(w http.ResponseWriter, r *http.Request)
 		case <-ping:
 			lastHeartbeat = time.Now()
 		case msg := <-incoming:
-			msg, err := wc.handleIncomingMessage(ctx, user, msg)
+			msg, receivers, err := wc.handleIncomingMessage(ctx, user, msg)
 			if err != nil {
 				wc.logger.ERROR(fmt.Sprintf("an error occurred while handling request: %v", err))
-				return
+				if msg == nil {
+					wc.logger.ERROR("ending incoming message execution")
+					return
+				}
+
+				wc.logger.ERROR("message was successfully created but receivers were not able to be collected. sending notification to sender.")
 			}
-			handler.SendMessage(user.ID, msg)
+			handler.SendMessage(user.ID, msg, receivers)
 		case err := <-errChan:
 			wc.logger.ERROR(fmt.Sprintf("error reading from websocket: %v", err))
 			return
@@ -165,19 +170,28 @@ func handleConnection(ctx context.Context, conn *websocket.Conn, limiter *rate.L
 	return false, nil
 }
 
-func (wc *WebsocketController) handleIncomingMessage(ctx context.Context, user *models.AuthUser, message *models.WebsocketMessage) (*models.WebsocketMessage, error) {
+func (wc *WebsocketController) handleIncomingMessage(ctx context.Context, user *models.AuthUser, message *models.WebsocketMessage) (*models.WebsocketMessage, map[int32]bool, error) {
+	receivers := map[int32]bool{user.ID: true}
 
 	switch message.Type {
 	case "message":
 		output, err := wc.db.CreateMessage(ctx, message.Data.(*models.Message), user.ID)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		message.Data = output
+		rec, err := wc.db.GetChannelMembers(ctx, message.Data.(*models.Message).ChannelID)
+		if err != nil {
+			return message, receivers, err
+		}
+
+		for k, v := range rec {
+			receivers[k] = v
+		}
 	default:
 		wc.logger.ERROR(fmt.Sprintf("an unknown message type was handled by handleIncomingMessage: %s", message.Type))
-		return nil, fmt.Errorf("an unknown message type was passed")
+		return nil, nil, fmt.Errorf("an unknown message type was passed")
 	}
 
-	return message, nil
+	return message, receivers, nil
 }

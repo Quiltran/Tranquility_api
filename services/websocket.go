@@ -29,15 +29,20 @@ func NewWebsocketServer(ctx context.Context, logger Logger) *WebsocketServer {
 	}
 }
 
-func (ws *WebsocketServer) sendSystemMessage(data models.WebsocketMessage) {
+func (ws *WebsocketServer) sendSystemMessage(data *models.WebsocketMessage, notificationTargets map[int32]bool) {
 	ws.mutex.Lock()
 	defer ws.mutex.Unlock()
+
 	bytes, err := json.Marshal(data)
 	if err != nil {
 		ws.logger.ERROR(fmt.Sprintf("Error marshaling data: %+v", data))
 		return
 	}
+
 	for userId, conn := range ws.users {
+		if _, ok := notificationTargets[userId]; !ok {
+			continue
+		}
 		ws.logger.INFO(fmt.Sprintf("Sending notification to %d", userId))
 		w, err := conn.Writer(ws.shutdownContext, 1)
 		if err != nil {
@@ -83,7 +88,7 @@ func (ws *WebsocketServer) handleCommand(command models.WebsocketCommand) error 
 		err := ws.disconnect(command.UserId)
 		command.AcknowledgeChannel <- err
 	case "message":
-		ws.sendSystemMessage(*command.Message)
+		ws.sendSystemMessage(command.Message, command.NotificationTargets)
 		command.AcknowledgeChannel <- nil
 	default:
 		return fmt.Errorf("unknown command has been provided: %s", command.Type)
@@ -139,8 +144,8 @@ func (wh *WebsocketHandler) Disconnect(userId int32) error {
 	return nil
 }
 
-func (wh *WebsocketHandler) SendMessage(userId int32, data *models.WebsocketMessage) error {
-	command, errorChannel := models.NewWebsocketMessageCommand(userId, data)
+func (wh *WebsocketHandler) SendMessage(userId int32, data *models.WebsocketMessage, receivers map[int32]bool) error {
+	command, errorChannel := models.NewWebsocketMessageCommand(userId, data, receivers)
 
 	wh.commandChannel <- *command
 
