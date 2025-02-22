@@ -61,7 +61,9 @@ func (wc *WebsocketController) Websocket(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	c, err := websocket.Accept(w, r, nil)
+	c, err := websocket.Accept(w, r, &websocket.AcceptOptions{
+		OriginPatterns: []string{"localhost:5173"},
+	})
 	if err != nil {
 		wc.logger.ERROR(fmt.Sprintf("Error accepting ws conection: %v", err))
 		return
