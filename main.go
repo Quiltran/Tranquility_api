@@ -9,6 +9,8 @@ import (
 	"tranquility/data"
 	"tranquility/middleware"
 	"tranquility/services"
+
+	"github.com/rs/cors"
 )
 
 func main() {
@@ -61,8 +63,9 @@ func main() {
 	).RegisterRoutes(&server)
 
 	mux := middleware.RequestLog(server, logger)
+	c := cors.AllowAll()
 
-	if err := http.ListenAndServe(":8080", mux); err != nil {
+	if err := http.ListenAndServe(":8080", c.Handler(mux)); err != nil {
 		panic(err)
 	}
 }
