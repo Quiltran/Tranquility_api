@@ -47,6 +47,13 @@ type WebsocketMessage struct {
 	Data WebsocketMessageData `json:"data,omitempty"`
 }
 
+func NewWebsocketMessage(dataType string, data WebsocketMessageData) *WebsocketMessage {
+	return &WebsocketMessage{
+		dataType,
+		data,
+	}
+}
+
 type WebsocketCommand struct {
 	Type                string
 	UserId              int32
