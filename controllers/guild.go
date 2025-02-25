@@ -26,6 +26,7 @@ func (g *Guild) RegisterRoutes(app *app.App) {
 	app.AddSecureRoute("GET", "/api/guild/{guildId}", g.getGuild)
 	app.AddSecureRoute("GET", "/api/guild/{guildId}/channel", g.getGuildChannels)
 	app.AddSecureRoute("GET", "/api/guild/{guildId}/channel/{channelId}", g.getGuildChannel)
+	app.AddSecureRoute("GET", "/api/guild/{guildId}/member", g.getGuildMembers)
 	app.AddSecureRoute("POST", "/api/guild", g.createGuild)
 	app.AddSecureRoute("POST", "/api/guild/{guildId}/channel", g.createChannel)
 	app.AddSecureRoute("POST", "/api/guild/{guildId}/member", g.createMember)
@@ -181,6 +182,35 @@ func (g *Guild) getGuildChannel(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err = writeJsonBody(w, channel); err != nil {
+		handleError(w, r, g.logger, err, nil, http.StatusInternalServerError, "error")
+		return
+	}
+}
+
+func (g *Guild) getGuildMembers(w http.ResponseWriter, r *http.Request) {
+	claims, err := getClaims(r)
+	if err != nil {
+		handleError(w, r, g.logger, err, nil, http.StatusUnauthorized, "error")
+		return
+	}
+
+	guildId, err := strconv.Atoi(r.PathValue("guildId"))
+	if err != nil {
+		handleError(w, r, g.logger, err, nil, http.StatusBadRequest, "warning")
+		return
+	}
+
+	members, err := g.database.GetGuildMembers(r.Context(), int32(guildId), claims.ID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			handleError(w, r, g.logger, err, nil, http.StatusBadRequest, "warning")
+			return
+		}
+		handleError(w, r, g.logger, err, nil, http.StatusInternalServerError, "error")
+		return
+	}
+
+	if err = writeJsonBody(w, members); err != nil {
 		handleError(w, r, g.logger, err, nil, http.StatusInternalServerError, "error")
 		return
 	}

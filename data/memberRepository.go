@@ -65,24 +65,39 @@ func (m *memberRepo) CreateMember(ctx context.Context, member *models.Member) (*
 	return &output, nil
 }
 
-func (m *memberRepo) GetGuildMembers(ctx context.Context, guildId int32) (map[int32]bool, error) {
-	output := make(map[int32]bool)
+func (m *memberRepo) GetGuildMembers(ctx context.Context, guildId, userId int32) ([]models.AuthUser, error) {
+	output := []models.AuthUser{}
 
 	rows, err := m.db.QueryContext(
 		ctx,
-		`SELECT user_id FROM member WHERE guild_id = $1;`,
-		guildId,
+		`SELECT a.id, a.Username
+		FROM member m JOIN auth a ON a.id = m.user_id
+		WHERE m.guild_id = $1
+		AND EXISTS(
+			SELECT 1
+			FROM member requester
+			WHERE requester.user_id = $2 AND requester.guild_id = $1
+		);`,
+		&guildId,
+		&userId,
 	)
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	for rows.Next() {
-		var userId int32
-		if err := rows.Scan(&userId); err != nil {
+		var member models.AuthUser
+		if err := rows.Scan(&member.ID, &member.Username); err != nil {
 			return nil, err
 		}
-		output[userId] = true
+		output = append(output, member)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if len(output) == 0 {
+		return nil, sql.ErrNoRows
 	}
 
 	return output, nil
@@ -101,6 +116,7 @@ func (m *memberRepo) GetChannelMembers(ctx context.Context, channelId int32) (ma
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var userId int32
@@ -108,6 +124,9 @@ func (m *memberRepo) GetChannelMembers(ctx context.Context, channelId int32) (ma
 			return nil, err
 		}
 		output[userId] = true
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return output, nil
