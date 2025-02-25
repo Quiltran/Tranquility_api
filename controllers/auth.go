@@ -23,7 +23,7 @@ func NewAuthController(logger services.Logger, dbCommands data.IDatabase) *Auth 
 func (a *Auth) RegisterRoutes(app *app.App) {
 	app.AddRoute("POST", "/api/auth/login", a.login)
 	app.AddRoute("POST", "/api/auth/register", a.register)
-	app.AddSecureRoute("POST", "/api/auth/refresh", a.refreshToken)
+	app.AddValidatedRoute("POST", "/api/auth/refresh", a.refreshToken)
 }
 
 func (a *Auth) login(w http.ResponseWriter, r *http.Request) {

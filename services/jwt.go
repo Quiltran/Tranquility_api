@@ -3,6 +3,7 @@ package services
 import (
 	"fmt"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -43,6 +44,7 @@ func init() {
 	if audienceSetting != "" {
 		audience = strings.Split(audienceSetting, ",")
 	}
+	slices.Sort(audience)
 
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
@@ -69,10 +71,46 @@ func GenerateToken(user *models.AuthUser) (string, error) {
 	return token.SignedString([]byte(key))
 }
 
+func ParseToken(token string) (*Claims, error) {
+	jwtToken, err := jwt.ParseWithClaims(
+		token,
+		&Claims{},
+		func(token *jwt.Token) (interface{}, error) {
+			return []byte(key), nil
+		},
+		jwt.WithoutClaimsValidation(),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	claims, ok := jwtToken.Claims.(*Claims)
+	if !ok {
+		return nil, fmt.Errorf("claims provided was not valid: %+v", err)
+	}
+
+	if claims.Issuer != issuer {
+		return nil, fmt.Errorf("invalid issuer was provided through token")
+	}
+
+	testAud := claims.Audience
+	slices.Sort(testAud)
+	for i := range testAud {
+		if testAud[i] != audience[i] {
+			return nil, fmt.Errorf("invalid audience field")
+		}
+	}
+
+	return claims, nil
+}
+
 func VerifyToken(token string) (*Claims, error) {
-	claims, err := jwt.ParseWithClaims(token, &Claims{}, func(token *jwt.Token) (interface{}, error) {
-		return []byte(key), nil
-	})
+	claims, err := jwt.ParseWithClaims(
+		token,
+		&Claims{},
+		func(token *jwt.Token) (interface{}, error) {
+			return []byte(key), nil
+		})
 
 	if err != nil {
 		return nil, fmt.Errorf("an error occurred while parsing JWT: %v", err)
