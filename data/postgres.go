@@ -150,7 +150,13 @@ func (p *Postgres) GetJoinedGuilds(ctx context.Context, userId int32) ([]models.
 		if err != nil {
 			return nil, err
 		}
+		members, err := p.GetGuildMembers(ctx, guilds[i].ID, userId)
+		if err != nil {
+			return nil, err
+		}
+
 		guilds[i].Channels = channels
+		guilds[i].Members = members
 	}
 
 	return guilds, nil
@@ -174,4 +180,12 @@ func (p *Postgres) CreateGuild(ctx context.Context, guild *models.Guild, userId 
 	}
 
 	return guild, nil
+}
+
+func (p *Postgres) GetMembers(ctx context.Context, guildId int32) ([]models.Member, error) {
+	if guildId == -1 {
+		return p.memberRepo.GetMembers(ctx)
+	} else {
+		return p.memberRepo.GetNotAddedMembers(ctx, guildId)
+	}
 }

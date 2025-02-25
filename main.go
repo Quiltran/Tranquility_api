@@ -61,6 +61,10 @@ func main() {
 		logger,
 		websocketServer,
 	).RegisterRoutes(&server)
+	controllers.NewMemberController(
+		logger,
+		database,
+	).RegisterRoutes(&server)
 
 	mux := middleware.RequestLog(server, logger)
 	c := cors.AllowAll()

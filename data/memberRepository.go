@@ -41,9 +41,81 @@ func (m *memberRepo) addGuildMember(ctx context.Context, guildId, userId int32, 
 	return nil
 }
 
+func (m *memberRepo) GetMembers(ctx context.Context) ([]models.Member, error) {
+	var output []models.Member
+	rows, err := m.db.QueryContext(
+		ctx,
+		`SELECT a.id as user_id, a.username
+		 FROM auth a;`,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var model models.Member
+		if err := rows.Scan(&model.ID, &model.Username); err != nil {
+			return nil, err
+		}
+
+		output = append(output, model)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if len(output) == 0 {
+		return nil, sql.ErrNoRows
+	}
+
+	return output, nil
+}
+
+func (m *memberRepo) GetNotAddedMembers(ctx context.Context, guildId int32) ([]models.Member, error) {
+	var output []models.Member
+	rows, err := m.db.QueryContext(
+		ctx,
+		`SELECT a.id, a.username
+		 FROM auth a
+		 WHERE NOT EXISTS (
+		 	SELECT 1
+			FROM member m
+			WHERE m.user_id = a.id AND m.guild_id = $1
+		 );`,
+		&guildId,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var model models.Member
+		if err := rows.Scan(&model.ID, &model.Username); err != nil {
+			return nil, err
+		}
+
+		output = append(output, model)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if len(output) == 0 {
+		return nil, sql.ErrNoRows
+	}
+
+	return output, nil
+}
+
 func (m *memberRepo) CreateMember(ctx context.Context, member *models.Member) (*models.Member, error) {
+	tx, err := m.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Commit()
+
 	var output models.Member
-	err := m.db.QueryRowxContext(
+	err = tx.QueryRowContext(
 		ctx,
 		`INSERT INTO member (user_id, guild_id, user_who_added)
 		 VALUES ($1, $2, $3)
@@ -51,7 +123,10 @@ func (m *memberRepo) CreateMember(ctx context.Context, member *models.Member) (*
 		&member.UserId,
 		&member.GuildId,
 		&member.UserWhoAdded,
-	).StructScan(&output)
+	).Scan(
+		&output.ID, &output.UserId, &output.GuildId,
+		&output.UserWhoAdded, &output.CreatedDate, &output.UpdatedDate,
+	)
 	if err != nil {
 		var pgErr *pq.Error
 		if errors.As(err, &pgErr) {
@@ -59,6 +134,14 @@ func (m *memberRepo) CreateMember(ctx context.Context, member *models.Member) (*
 				return nil, ErrDuplicateMember
 			}
 		}
+		return nil, err
+	}
+	err = tx.QueryRowContext(
+		ctx,
+		`SELECT username from auth WHERE id = $1`,
+		output.UserId,
+	).Scan(&output.Username)
+	if err != nil {
 		return nil, err
 	}
 
