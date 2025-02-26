@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"tranquility/app"
 	"tranquility/config"
@@ -74,6 +75,8 @@ func main() {
 		AllowedOrigins: config.AllowedOrigins,
 		AllowedMethods: []string{"GET", "POST", "OPTIONS", "DELETE", "HEAD"},
 	})
+
+	logger.INFO(fmt.Sprintf("allowing origins %s", config.AllowedOrigins))
 
 	if err := http.ListenAndServe(":8080", c.Handler(mux)); err != nil {
 		panic(err)
