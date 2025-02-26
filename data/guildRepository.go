@@ -19,7 +19,7 @@ type guildRepo struct {
 }
 
 func (g *guildRepo) GetJoinedGuilds(ctx context.Context, userId int32) ([]models.Guild, error) {
-	var output []models.Guild
+	output := make([]models.Guild, 0)
 	rows, err := g.db.QueryContext(
 		ctx,
 		`SELECT g.id, g.name, g.description, g.owner_id, g.created_date, g.updated_date
@@ -48,7 +48,7 @@ func (g *guildRepo) GetJoinedGuilds(ctx context.Context, userId int32) ([]models
 }
 
 func (g *guildRepo) GetGuildChannels(ctx context.Context, guildId, userId int32) ([]models.Channel, error) {
-	var output []models.Channel
+	output := make([]models.Channel, 0)
 	rows, err := g.db.QueryContext(
 		ctx,
 		`SELECT c.id, c.name, c.message_count, c.guild_id, c.created_date, c.updated_date
