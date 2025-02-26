@@ -23,6 +23,7 @@ services:
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf
       - /etc/letsencrypt/live/api.quiltran.com:/etc/letsencrypt/live/api.quiltran.com
+      - /etc/letsencrypt/archive/api.quiltran.com:/etc/letsencrypt/archive/api.quiltran.com
     depends_on:
       - api
     networks:
