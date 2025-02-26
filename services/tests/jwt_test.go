@@ -1,21 +1,25 @@
 package services_test
 
 import (
-	"os"
 	"testing"
+	"time"
+	"tranquility/config"
 	"tranquility/models"
 	"tranquility/services"
 )
 
 func TestGenerateToken(t *testing.T) {
-	os.Setenv("JWT_SECRET", "testing")
-
 	user := models.AuthUser{
 		ID:       1,
 		Username: "Steven",
 	}
 
-	token, err := services.GenerateToken(&user)
+	config := config.JWTConfig{
+		Key: "testing",
+	}
+	jwtHandler := services.NewJWTHandler(&config)
+
+	token, err := jwtHandler.GenerateToken(&user)
 	if err != nil {
 		t.Fatalf("generating a token returned an error: %v", err)
 	}
@@ -27,7 +31,11 @@ func TestGenerateToken(t *testing.T) {
 }
 
 func TestValidateToken(t *testing.T) {
-	os.Setenv("JWT_SECRET", "testing")
+	config := config.JWTConfig{
+		Lifetime: time.Duration(2 * time.Minute),
+		Key:      "testing",
+	}
+	jwtHandler := services.NewJWTHandler(&config)
 
 	user := models.AuthUser{
 		ID:       1,
@@ -37,12 +45,12 @@ func TestValidateToken(t *testing.T) {
 		Username: "Steven",
 		ID:       1,
 	}
-	token, err := services.GenerateToken(&user)
+	token, err := jwtHandler.GenerateToken(&user)
 	if err != nil {
 		t.Fatalf("generating token returned an error: %v", err)
 	}
 
-	parsedToken, err := services.VerifyToken(token)
+	parsedToken, err := jwtHandler.VerifyToken(token)
 	if err != nil {
 		t.Fatalf("verifying token has returned an error: %v", err)
 	}

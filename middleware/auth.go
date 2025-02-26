@@ -11,7 +11,7 @@ type claimsKey struct{}
 
 var ClaimsContextKey claimsKey
 
-func ValidateJWT(next http.Handler, logger services.Logger) http.Handler {
+func ValidateJWT(next http.Handler, logger services.Logger, jwtHandler *services.JWTHandler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
@@ -22,7 +22,7 @@ func ValidateJWT(next http.Handler, logger services.Logger) http.Handler {
 
 		token := authHeader[len("Bearer "):]
 
-		claims, err := services.VerifyToken(token)
+		claims, err := jwtHandler.VerifyToken(token)
 		if err != nil {
 			logger.ERROR(fmt.Sprintf("an error occurred while verifying auth token: %v", err))
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
@@ -36,7 +36,7 @@ func ValidateJWT(next http.Handler, logger services.Logger) http.Handler {
 	})
 }
 
-func ParseJWT(next http.Handler, logger services.Logger) http.Handler {
+func ParseJWT(next http.Handler, logger services.Logger, jwtHandler *services.JWTHandler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
@@ -47,7 +47,7 @@ func ParseJWT(next http.Handler, logger services.Logger) http.Handler {
 
 		token := authHeader[len("Bearer "):]
 
-		claims, err := services.ParseToken(token)
+		claims, err := jwtHandler.ParseToken(token)
 		if err != nil {
 			logger.ERROR(fmt.Sprintf("an error occurred while verifying auth token: %v", err))
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)

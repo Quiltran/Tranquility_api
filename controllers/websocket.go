@@ -25,13 +25,15 @@ type WebsocketController struct {
 	db              data.IDatabase
 	logger          services.Logger
 	websocketServer *services.WebsocketServer
+	audience        []string
 }
 
-func NewWebsocketController(db data.IDatabase, logger services.Logger, websocketServer *services.WebsocketServer) *WebsocketController {
+func NewWebsocketController(db data.IDatabase, logger services.Logger, websocketServer *services.WebsocketServer, audience []string) *WebsocketController {
 	return &WebsocketController{
 		db,
 		logger,
 		websocketServer,
+		audience,
 	}
 }
 

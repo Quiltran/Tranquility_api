@@ -23,9 +23,10 @@ type Postgres struct {
 	messageRepo
 	memberRepo
 	fileHandler *services.FileHandler
+	jwtHandler  *services.JWTHandler
 }
 
-func CreatePostgres(connectionString string, fileHandler *services.FileHandler) (*Postgres, error) {
+func CreatePostgres(connectionString string, fileHandler *services.FileHandler, jwtHandler *services.JWTHandler) (*Postgres, error) {
 	db, err := sqlx.Connect("postgres", connectionString)
 	if err != nil {
 		return nil, err
@@ -38,6 +39,7 @@ func CreatePostgres(connectionString string, fileHandler *services.FileHandler) 
 		messageRepo:    messageRepo{db},
 		memberRepo:     memberRepo{db},
 		fileHandler:    fileHandler,
+		jwtHandler:     jwtHandler,
 	}, nil
 }
 
@@ -57,7 +59,7 @@ func (p *Postgres) Login(ctx context.Context, user *models.AuthUser) (*models.Au
 		return nil, ErrInvalidCredentials
 	}
 
-	authToken, err := services.GenerateToken(credentials)
+	authToken, err := p.jwtHandler.GenerateToken(credentials)
 	if err != nil {
 		return nil, fmt.Errorf("an error occurred while generating token: %v", err)
 	}
@@ -96,7 +98,7 @@ func (p *Postgres) RefreshToken(ctx context.Context, user *models.AuthUser) (*mo
 		return nil, err
 	}
 
-	token, err := services.GenerateToken(credentials)
+	token, err := p.jwtHandler.GenerateToken(credentials)
 	if err != nil {
 		return nil, err
 	}

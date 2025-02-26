@@ -2,21 +2,12 @@ package services
 
 import (
 	"fmt"
-	"os"
 	"slices"
-	"strconv"
-	"strings"
 	"time"
+	"tranquility/config"
 	"tranquility/models"
 
 	"github.com/golang-jwt/jwt/v5"
-)
-
-var (
-	lifetime time.Duration = time.Duration(2 * time.Minute)
-	issuer   string        = "Tranquility"
-	audience []string      = []string{"Tranquility"}
-	key      string
 )
 
 type Claims struct {
@@ -25,58 +16,37 @@ type Claims struct {
 	*jwt.RegisteredClaims
 }
 
-func init() {
-	lifetimeSetting := os.Getenv("JWT_LIFETIME")
-	if lifetimeSetting != "" {
-		l, err := strconv.ParseInt(lifetimeSetting, 10, 64)
-		if err != nil {
-			panic(fmt.Errorf("an error occurred while loading jwt lifetime: %v", err))
-		}
-		lifetime = time.Duration(time.Duration(l) * time.Minute)
-	}
-
-	issuerSetting := os.Getenv("JWT_ISSUER")
-	if issuerSetting != "" {
-		issuer = issuerSetting
-	}
-
-	audienceSetting := os.Getenv("JWT_AUDIENCE")
-	if audienceSetting != "" {
-		audience = strings.Split(audienceSetting, ",")
-	}
-	slices.Sort(audience)
-
-	jwtSecret := os.Getenv("JWT_SECRET")
-	if jwtSecret == "" {
-		panic(fmt.Errorf("JWT_SECRET was not set"))
-	} else {
-		key = jwtSecret
-	}
+type JWTHandler struct {
+	*config.JWTConfig
 }
 
-func GenerateToken(user *models.AuthUser) (string, error) {
+func NewJWTHandler(config *config.JWTConfig) *JWTHandler {
+	return &JWTHandler{config}
+}
+
+func (j *JWTHandler) GenerateToken(user *models.AuthUser) (string, error) {
 	claims := Claims{
 		user.Username,
 		user.ID,
 		&jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(lifetime)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(j.Lifetime)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			NotBefore: jwt.NewNumericDate(time.Now()),
-			Issuer:    issuer,
-			Audience:  audience,
+			Issuer:    j.Issuer,
+			Audience:  j.Audience,
 		},
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(key))
+	return token.SignedString([]byte(j.Key))
 }
 
-func ParseToken(token string) (*Claims, error) {
+func (j *JWTHandler) ParseToken(token string) (*Claims, error) {
 	jwtToken, err := jwt.ParseWithClaims(
 		token,
 		&Claims{},
 		func(token *jwt.Token) (interface{}, error) {
-			return []byte(key), nil
+			return []byte(j.Key), nil
 		},
 		jwt.WithoutClaimsValidation(),
 	)
@@ -89,14 +59,14 @@ func ParseToken(token string) (*Claims, error) {
 		return nil, fmt.Errorf("claims provided was not valid: %+v", err)
 	}
 
-	if claims.Issuer != issuer {
+	if claims.Issuer != j.Issuer {
 		return nil, fmt.Errorf("invalid issuer was provided through token")
 	}
 
 	testAud := claims.Audience
 	slices.Sort(testAud)
 	for i := range testAud {
-		if testAud[i] != audience[i] {
+		if testAud[i] != j.Audience[i] {
 			return nil, fmt.Errorf("invalid audience field")
 		}
 	}
@@ -104,12 +74,12 @@ func ParseToken(token string) (*Claims, error) {
 	return claims, nil
 }
 
-func VerifyToken(token string) (*Claims, error) {
+func (j *JWTHandler) VerifyToken(token string) (*Claims, error) {
 	claims, err := jwt.ParseWithClaims(
 		token,
 		&Claims{},
 		func(token *jwt.Token) (interface{}, error) {
-			return []byte(key), nil
+			return []byte(j.Key), nil
 		})
 
 	if err != nil {

@@ -29,7 +29,9 @@ func main() {
 
 	fileHandler := services.NewFileHandler(config.UploadPath)
 
-	database, err := data.CreatePostgres(config.ConnectionString, fileHandler)
+	jwtHandler := services.NewJWTHandler(config.JWTConfig)
+
+	database, err := data.CreatePostgres(config.ConnectionString, fileHandler, jwtHandler)
 	if err != nil {
 		panic(err)
 	}
@@ -37,7 +39,7 @@ func main() {
 	websocketServer := services.NewWebsocketServer(ctx, logger)
 	go websocketServer.Run()
 
-	server := app.CreateApp(logger)
+	server := app.CreateApp(logger, jwtHandler)
 
 	controllers.NewAuthController(
 		logger,
@@ -60,6 +62,7 @@ func main() {
 		database,
 		logger,
 		websocketServer,
+		config.JWTConfig.Audience,
 	).RegisterRoutes(&server)
 	controllers.NewMemberController(
 		logger,
