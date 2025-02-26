@@ -74,7 +74,7 @@ func main() {
 	c := cors.New(cors.Options{
 		AllowedOrigins: config.AllowedOrigins,
 		AllowedMethods: []string{"GET", "POST", "OPTIONS", "DELETE", "HEAD"},
-		AllowedHeaders: []string{"Authorization", "authorization"},
+		AllowedHeaders: []string{"*"},
 	})
 
 	logger.INFO(fmt.Sprintf("allowing origins %s", config.AllowedOrigins))
