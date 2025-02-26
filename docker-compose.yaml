@@ -37,6 +37,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:?}
     volumes:
       - ./database_scripts:/docker-entrypoint-initdb.d
+    networks:
+      - app-network
     ports:
       - "5432:5432"
     restart: always
