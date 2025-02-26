@@ -3,6 +3,13 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    environment:
+      CONNECTION_STRING: ${CONNECTION_STRING:?}
+      UPLOAD_PATH: ${UPLOAD_PATH:?}
+      JWT_LIFETIME: ${JWT_LIFETIME:?}
+      JWT_ISSUER: ${JWT_ISSUER:?}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:?}
+      JWT_SECRET: ${JWT_SECRET:?}
     networks:
       - app-network
     depends_on:
