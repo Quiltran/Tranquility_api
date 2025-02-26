@@ -5,6 +5,7 @@ services:
       dockerfile: Dockerfile
     environment:
       CONNECTION_STRING: ${CONNECTION_STRING:?}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:?}
       UPLOAD_PATH: ${UPLOAD_PATH:?}
       JWT_LIFETIME: ${JWT_LIFETIME}
       JWT_ISSUER: ${JWT_ISSUER:?}

@@ -13,6 +13,7 @@ import (
 type Config struct {
 	ConnectionString string
 	UploadPath       string
+	AllowedOrigins   []string
 	*JWTConfig
 }
 
@@ -32,6 +33,11 @@ func NewConfig() (*Config, error) {
 	uploadPath := os.Getenv("UPLOAD_PATH")
 	if uploadPath == "" {
 		return nil, errors.New("UPLOAD_PATH was not set")
+	}
+
+	origins := strings.Split(os.Getenv("ALLOWED_ORIGINS"), ",")
+	if len(origins) == 0 || origins[0] == "" {
+		return nil, errors.New("ALLOWED_ORIGINS was not set")
 	}
 
 	jwtConfig := &JWTConfig{
@@ -71,6 +77,7 @@ func NewConfig() (*Config, error) {
 	return &Config{
 		connectionString,
 		uploadPath,
+		origins,
 		jwtConfig,
 	}, nil
 }

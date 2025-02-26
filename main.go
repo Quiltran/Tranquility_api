@@ -70,7 +70,10 @@ func main() {
 	).RegisterRoutes(&server)
 
 	mux := middleware.RequestLog(server, logger)
-	c := cors.AllowAll()
+	c := cors.New(cors.Options{
+		AllowedOrigins: config.AllowedOrigins,
+		AllowedMethods: []string{"GET", "POST", "OPTIONS", "DELETE", "HEAD"},
+	})
 
 	if err := http.ListenAndServe(":8080", c.Handler(mux)); err != nil {
 		panic(err)
