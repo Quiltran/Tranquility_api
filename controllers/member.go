@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"database/sql"
 	"net/http"
 	"strconv"
 	"tranquility/app"
@@ -36,10 +35,6 @@ func (m *Member) getMembers(w http.ResponseWriter, r *http.Request) {
 
 	members, err := m.database.GetMembers(r.Context(), int32(guildId))
 	if err != nil {
-		if err == sql.ErrNoRows {
-			handleError(w, r, m.logger, err, nil, http.StatusBadRequest, "warning")
-			return
-		}
 		handleError(w, r, m.logger, err, nil, http.StatusInternalServerError, "error")
 		return
 	}
