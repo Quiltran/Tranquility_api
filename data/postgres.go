@@ -24,9 +24,10 @@ type Postgres struct {
 	memberRepo
 	fileHandler *services.FileHandler
 	jwtHandler  *services.JWTHandler
+	cloudflare  *services.CloudflareService
 }
 
-func CreatePostgres(connectionString string, fileHandler *services.FileHandler, jwtHandler *services.JWTHandler) (*Postgres, error) {
+func CreatePostgres(connectionString string, fileHandler *services.FileHandler, jwtHandler *services.JWTHandler, cloudflare *services.CloudflareService) (*Postgres, error) {
 	db, err := sqlx.Connect("postgres", connectionString)
 	if err != nil {
 		return nil, err
@@ -40,12 +41,19 @@ func CreatePostgres(connectionString string, fileHandler *services.FileHandler, 
 		memberRepo:     memberRepo{db},
 		fileHandler:    fileHandler,
 		jwtHandler:     jwtHandler,
+		cloudflare:     cloudflare,
 	}, nil
 }
 
-func (p *Postgres) Login(ctx context.Context, user *models.AuthUser) (*models.AuthUser, error) {
+func (p *Postgres) Login(ctx context.Context, user *models.AuthUser, ip string) (*models.AuthUser, error) {
 	if user.Password == "" {
 		return nil, ErrMissingPassword
+	}
+
+	if ok, err := p.cloudflare.VerifyTurnstile(user.Turnstile, ip); err != nil {
+		return nil, err
+	} else if !ok {
+		return nil, fmt.Errorf("turnstile was rejected")
 	}
 
 	credentials, err := p.authRepo.Login(ctx, user)
@@ -69,9 +77,15 @@ func (p *Postgres) Login(ctx context.Context, user *models.AuthUser) (*models.Au
 	return credentials, nil
 }
 
-func (p *Postgres) Register(ctx context.Context, user *models.AuthUser) (*models.AuthUser, error) {
+func (p *Postgres) Register(ctx context.Context, user *models.AuthUser, ip string) (*models.AuthUser, error) {
 	if user.Password == "" || user.ConfirmPassword == "" {
 		return nil, ErrInvalidCredentials
+	}
+
+	if ok, err := p.cloudflare.VerifyTurnstile(user.Turnstile, ip); err != nil {
+		return nil, err
+	} else if !ok {
+		return nil, fmt.Errorf("turnstile was rejected")
 	}
 
 	password, err := services.HashPassword(user.Password)

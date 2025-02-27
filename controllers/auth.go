@@ -35,7 +35,7 @@ func (a *Auth) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := a.database.Login(r.Context(), body)
+	user, err := a.database.Login(r.Context(), body, r.RemoteAddr)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrInvalidCredentials):
@@ -68,7 +68,7 @@ func (a *Auth) register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := a.database.Register(r.Context(), body)
+	user, err := a.database.Register(r.Context(), body, r.RemoteAddr)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrInvalidCredentials):

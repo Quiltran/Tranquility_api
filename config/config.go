@@ -14,6 +14,7 @@ type Config struct {
 	ConnectionString string
 	UploadPath       string
 	AllowedOrigins   []string
+	TurnstileSecret  string
 	*JWTConfig
 }
 
@@ -38,6 +39,11 @@ func NewConfig() (*Config, error) {
 	origins := strings.Split(os.Getenv("ALLOWED_ORIGINS"), ",")
 	if len(origins) == 0 || origins[0] == "" {
 		return nil, errors.New("ALLOWED_ORIGINS was not set")
+	}
+
+	turnstileSecret := os.Getenv("TURNSTILE_SECRET")
+	if turnstileSecret == "" {
+		return nil, errors.New("TURNSTILE_SECRET was not set")
 	}
 
 	jwtConfig := &JWTConfig{
@@ -75,9 +81,10 @@ func NewConfig() (*Config, error) {
 	}
 
 	return &Config{
-		connectionString,
-		uploadPath,
-		origins,
-		jwtConfig,
+		ConnectionString: connectionString,
+		UploadPath:       uploadPath,
+		AllowedOrigins:   origins,
+		TurnstileSecret:  turnstileSecret,
+		JWTConfig:        jwtConfig,
 	}, nil
 }

@@ -29,10 +29,10 @@ func main() {
 	}
 
 	fileHandler := services.NewFileHandler(config.UploadPath)
-
 	jwtHandler := services.NewJWTHandler(config.JWTConfig)
+	cloudflare := services.NewCloudflareService(config.TurnstileSecret, logger)
 
-	database, err := data.CreatePostgres(config.ConnectionString, fileHandler, jwtHandler)
+	database, err := data.CreatePostgres(config.ConnectionString, fileHandler, jwtHandler, cloudflare)
 	if err != nil {
 		panic(err)
 	}

@@ -11,6 +11,7 @@ type AuthUser struct {
 	Token           string     `json:"token,omitempty"`
 	RefreshToken    string     `json:"refresh_token,omitempty" db:"refresh_token"`
 	WebsocketToken  string     `json:"websocket_token,omitempty" db:"websocket_token"`
+	Turnstile       string     `json:"turnstile"`
 	CreatedDate     *time.Time `json:"created_date,omitempty" db:"created_date"`
 	UpdatedDate     *time.Time `json:"updated_date,omitempty" db:"updated_date"`
 }
