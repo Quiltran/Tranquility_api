@@ -42,7 +42,7 @@ func (m *memberRepo) addGuildMember(ctx context.Context, guildId, userId int32, 
 }
 
 func (m *memberRepo) GetMembers(ctx context.Context) ([]models.Member, error) {
-	var output []models.Member
+	output := make([]models.Member, 0)
 	rows, err := m.db.QueryContext(
 		ctx,
 		`SELECT a.id as user_id, a.username
@@ -64,15 +64,12 @@ func (m *memberRepo) GetMembers(ctx context.Context) ([]models.Member, error) {
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	if len(output) == 0 {
-		return nil, sql.ErrNoRows
-	}
 
 	return output, nil
 }
 
 func (m *memberRepo) GetNotAddedMembers(ctx context.Context, guildId int32) ([]models.Member, error) {
-	var output []models.Member
+	output := make([]models.Member, 0)
 	rows, err := m.db.QueryContext(
 		ctx,
 		`SELECT a.id, a.username
@@ -99,9 +96,6 @@ func (m *memberRepo) GetNotAddedMembers(ctx context.Context, guildId int32) ([]m
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
-	}
-	if len(output) == 0 {
-		return nil, sql.ErrNoRows
 	}
 
 	return output, nil
