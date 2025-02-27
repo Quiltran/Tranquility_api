@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -113,7 +114,7 @@ func (a *Auth) refreshToken(w http.ResponseWriter, r *http.Request) {
 	user, err := a.database.RefreshToken(r.Context(), &body)
 	if err != nil {
 		switch {
-		case errors.Is(err, data.ErrInvalidCredentials):
+		case errors.Is(err, data.ErrInvalidCredentials) || errors.Is(err, sql.ErrNoRows):
 			a.logger.WARNING(fmt.Sprintf("a request was made to refresh auth token invalid data. request id: %s", requestId))
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
