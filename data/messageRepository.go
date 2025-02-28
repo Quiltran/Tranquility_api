@@ -35,6 +35,7 @@ func (m *messageRepo) GetChannelMessages(ctx context.Context, userId, guildId, c
 		WHERE   g.id = $1
 			AND c.id = $2
 			AND mem.user_id = $3
+		ORDER BY m.id ASC
 		OFFSET $4
 		LIMIT $5;`,
 		guildId,
