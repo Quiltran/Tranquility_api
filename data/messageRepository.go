@@ -89,13 +89,18 @@ func (m *messageRepo) CreateMessage(ctx context.Context, message *models.Message
         SELECT
             im.id,
             im.channel_id,
+			c.name as channel_name,
+			g.id as guild_id,
+			g.name as guild_name,
             a.username as author,
             im.author_id,
             im.content,
             im.created_date,
             im.updated_date
         FROM im
-        JOIN auth a ON im.author_id = a.id`,
+        JOIN auth a ON im.author_id = a.id
+		JOIN channel c on c.id = im.channel_id
+		JOIN guild g on c.guild_id = g.id`,
 		userId,
 		message.ChannelID,
 		message.Content,
