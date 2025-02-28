@@ -12,13 +12,13 @@ type notificationRepo struct {
 	db *sqlx.DB
 }
 
-func (n *notificationRepo) SaveUserPushInformation(ctx context.Context, registration models.PushNotificationRegistration, userId int32) error {
+func (n *notificationRepo) SaveUserPushInformation(ctx context.Context, registration *models.PushNotificationRegistration, userId int32) error {
 	tx, err := n.db.BeginTxx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	result, err := tx.ExecContext(ctx,
-		`INSERT INTO notification (user_id, endpoint, pd256dh, auth) VALUES ($1, $2, $3, $4)`,
+		`INSERT INTO notification (user_id, endpoint, p256dh, auth) VALUES ($1, $2, $3, $4)`,
 		&userId,
 		&registration.Endpoint,
 		&registration.Keys.P256dh,
@@ -49,7 +49,7 @@ func (n *notificationRepo) GetUserPushNotificationInfo(ctx context.Context, user
 	var output models.PushNotificationInfo
 	err := n.db.QueryRowxContext(
 		ctx,
-		`SELECT user_id, endpoint, pd256dh, auth
+		`SELECT user_id, endpoint, p256dh, auth
 		FROM notification
 		WHERE user_id = $1`,
 		userId,
