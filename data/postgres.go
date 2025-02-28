@@ -22,6 +22,7 @@ type Postgres struct {
 	guildRepo
 	messageRepo
 	memberRepo
+	notificationRepo
 	fileHandler *services.FileHandler
 	jwtHandler  *services.JWTHandler
 	cloudflare  *services.CloudflareService
@@ -34,14 +35,15 @@ func CreatePostgres(connectionString string, fileHandler *services.FileHandler, 
 	}
 
 	return &Postgres{
-		authRepo:       authRepo{db},
-		attachmentRepo: attachmentRepo{db},
-		guildRepo:      guildRepo{db},
-		messageRepo:    messageRepo{db},
-		memberRepo:     memberRepo{db},
-		fileHandler:    fileHandler,
-		jwtHandler:     jwtHandler,
-		cloudflare:     cloudflare,
+		authRepo:         authRepo{db},
+		attachmentRepo:   attachmentRepo{db},
+		guildRepo:        guildRepo{db},
+		messageRepo:      messageRepo{db},
+		memberRepo:       memberRepo{db},
+		notificationRepo: notificationRepo{db},
+		fileHandler:      fileHandler,
+		jwtHandler:       jwtHandler,
+		cloudflare:       cloudflare,
 	}, nil
 }
 
