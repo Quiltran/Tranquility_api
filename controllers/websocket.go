@@ -13,6 +13,7 @@ import (
 	"tranquility/models"
 	"tranquility/services"
 
+	"github.com/SherClockHolmes/webpush-go"
 	"github.com/coder/websocket"
 	"golang.org/x/time/rate"
 )
@@ -187,12 +188,13 @@ func (wc *WebsocketController) handleIncomingMessage(ctx context.Context, user *
 
 	switch message.Type {
 	case "message":
-		output, err := wc.db.CreateMessage(ctx, message.Data.(*models.Message), user.ID)
+		data := message.Data.(*models.Message)
+		output, err := wc.db.CreateMessage(ctx, data, user.ID)
 		if err != nil {
 			return nil, nil, err
 		}
 		message.Data = output
-		rec, err := wc.db.GetChannelMembers(ctx, message.Data.(*models.Message).ChannelID)
+		rec, err := wc.db.GetChannelMembers(ctx, data.ChannelID)
 		if err != nil {
 			return message, receivers, err
 		}
@@ -200,6 +202,33 @@ func (wc *WebsocketController) handleIncomingMessage(ctx context.Context, user *
 		for k, v := range rec {
 			receivers[k] = v
 		}
+
+		notifications, err := wc.db.GetNotificationRecipients(ctx, user.ID, data.ChannelID)
+		if err != nil {
+			return nil, nil, fmt.Errorf("an error occurred while collecting push notification receivers: %v", err)
+		}
+		go func() {
+			message := models.NewPushNotificationMessage(
+				"A new message was just posted in %s",
+				fmt.Sprintf("%s sent a message in %s(%s)", user.Username, data.Guild, data.Channel),
+				fmt.Sprintf("/guild/%d/channel/%d", data.GuildID, data.ChannelID),
+				nil,
+			)
+			for _, x := range notifications {
+				if err := wc.pushNotificationService.SimplePush(
+					&webpush.Subscription{
+						Endpoint: x.Endpoint,
+						Keys: webpush.Keys{
+							Auth:   x.Auth,
+							P256dh: x.P256dh,
+						},
+					},
+					message,
+				); err != nil {
+					wc.logger.ERROR(fmt.Sprintf("an error occurred while sending notification to %s: %v", user.Username, err))
+				}
+			}
+		}()
 	default:
 		wc.logger.ERROR(fmt.Sprintf("an unknown message type was handled by handleIncomingMessage: %s", message.Type))
 		return nil, nil, fmt.Errorf("an unknown message type was passed")

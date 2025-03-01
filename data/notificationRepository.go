@@ -64,3 +64,37 @@ func (n *notificationRepo) GetUserPushNotificationInfo(ctx context.Context, user
 
 	return &output, nil
 }
+
+func (n *notificationRepo) GetNotificationRecipients(ctx context.Context, userId, channelId int32) ([]models.PushNotificationInfo, error) {
+	var output []models.PushNotificationInfo
+
+	rows, err := n.db.QueryxContext(
+		ctx,
+		`SELECT n.user_id, n.endpoint, n.p256dh, n.auth
+		FROM notification n
+		JOIN member m on m.user_id = n.user_id
+		JOIN channel c on c.guild_id = m.guild_id
+		WHERE c.id = $1 and n.user_id != $2`,
+		channelId,
+		userId,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var info models.PushNotificationInfo
+		if err := rows.StructScan(&info); err != nil {
+			return nil, err
+		}
+
+		output = append(output, info)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return output, nil
+}

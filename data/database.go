@@ -48,4 +48,5 @@ type IDatabase interface {
 	// Push Notifications
 	SaveUserPushInformation(ctx context.Context, registration *webpush.Subscription, userId int32) error
 	GetUserPushNotificationInfo(ctx context.Context, userId int32) (*models.PushNotificationInfo, error)
+	GetNotificationRecipients(ctx context.Context, userId, channelId int32) ([]models.PushNotificationInfo, error)
 }
