@@ -22,22 +22,33 @@ func (m *messageRepo) GetChannelMessages(ctx context.Context, userId, guildId, c
 		`SELECT
 			m.id,
 			m.channel_id,
-			a.username as author,
+			m.author,
 			m.author_id,
 			m.content,
 			m.created_date,
 			m.updated_date
-		FROM message m
-		JOIN auth a on a.id = m.author_id
-		JOIN channel c ON m.channel_id = c.id
-		JOIN guild g ON c.guild_id = g.id
-		JOIN member mem ON mem.guild_id = g.id
-		WHERE   g.id = $1
+		FROM (
+			SELECT
+				m.id,
+				m.channel_id,
+				a.username AS author,
+				m.author_id,
+				m.content,
+				m.created_date,
+				m.updated_date
+			FROM message m
+			JOIN auth a ON a.id = m.author_id
+			JOIN channel c ON m.channel_id = c.id
+			JOIN guild g ON c.guild_id = g.id
+			JOIN member mem ON mem.guild_id = g.id
+			WHERE g.id = $1
 			AND c.id = $2
 			AND mem.user_id = $3
-		ORDER BY m.id ASC
-		OFFSET $4
-		LIMIT $5;`,
+			ORDER BY m.id DESC
+			OFFSET $4
+			LIMIT $5
+		) AS m
+		ORDER BY id ASC;`,
 		guildId,
 		channelId,
 		userId,
