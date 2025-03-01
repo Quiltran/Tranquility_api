@@ -2,7 +2,7 @@ CREATE TABLE channel (
     id SERIAL PRIMARY KEY,
     name text,
     message_count integer DEFAULT 0,
-    guild_id integer REFERENCES guild(id),
+    guild_id integer REFERENCES guild(id) ON DELETE CASCADE,
     created_date TIMESTAMPTZ DEFAULT (NOW() AT TIME ZONE 'utc'),
     updated_date TIMESTAMPTZ DEFAULT (NOW() AT TIME ZONE 'utc')
 )
