@@ -208,10 +208,10 @@ func (wc *WebsocketController) handleIncomingMessage(ctx context.Context, user *
 			return nil, nil, fmt.Errorf("an error occurred while collecting push notification receivers: %v", err)
 		}
 		go func() {
-			message := models.NewPushNotificationMessage(
-				"A new message was just posted in %s",
-				fmt.Sprintf("%s sent a message in %s(%s)", user.Username, data.Guild, data.Channel),
-				fmt.Sprintf("/guild/%d/channel/%d", data.GuildID, data.ChannelID),
+			pushMessage := models.NewPushNotificationMessage(
+				fmt.Sprintf("A new message was just posted in %s", output.Guild),
+				fmt.Sprintf("%s sent a message in %s(%s)", user.Username, output.Guild, output.Channel),
+				fmt.Sprintf("/guild/%d/channel/%d", output.GuildID, output.ChannelID),
 				nil,
 			)
 			for _, x := range notifications {
@@ -223,7 +223,7 @@ func (wc *WebsocketController) handleIncomingMessage(ctx context.Context, user *
 							P256dh: x.P256dh,
 						},
 					},
-					message,
+					pushMessage,
 				); err != nil {
 					wc.logger.ERROR(fmt.Sprintf("an error occurred while sending notification to %s: %v", user.Username, err))
 				}
