@@ -12,9 +12,9 @@ type messageRepo struct {
 }
 
 func (m *messageRepo) GetChannelMessages(ctx context.Context, userId, guildId, channelId, pageNumber int32) ([]models.Message, error) {
-	var output []models.Message
+	var output []models.Message = make([]models.Message, 0)
 
-	pageSize := int64(20)
+	pageSize := int64(50)
 	offset := int64(pageNumber) * pageSize
 
 	rows, err := m.db.QueryContext(
@@ -48,7 +48,7 @@ func (m *messageRepo) GetChannelMessages(ctx context.Context, userId, guildId, c
 			OFFSET $4
 			LIMIT $5
 		) AS m
-		ORDER BY id ASC;`,
+		ORDER BY created_date ASC;`,
 		guildId,
 		channelId,
 		userId,
