@@ -5,6 +5,8 @@ import (
 	"errors"
 	"mime/multipart"
 	"tranquility/models"
+
+	"github.com/SherClockHolmes/webpush-go"
 )
 
 var (
@@ -44,6 +46,6 @@ type IDatabase interface {
 	CreateMessage(context.Context, *models.Message, int32) (*models.Message, error)
 
 	// Push Notifications
-	SaveUserPushInformation(ctx context.Context, registration *models.PushNotificationRegistration, userId int32) error
+	SaveUserPushInformation(ctx context.Context, registration *webpush.Subscription, userId int32) error
 	GetUserPushNotificationInfo(ctx context.Context, userId int32) (*models.PushNotificationInfo, error)
 }

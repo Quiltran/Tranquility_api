@@ -29,6 +29,7 @@ type JWTConfig struct {
 type PushNotificationConfig struct {
 	VapidPrivateKey string
 	VapidPublicKey  string
+	Sub             string
 }
 
 func NewConfig() (*Config, error) {
@@ -101,18 +102,24 @@ func loadJWTConfig() *JWTConfig {
 }
 
 func loadPushNotificationConfig() *PushNotificationConfig {
-	vapidPublicKey := os.Getenv("VAPID_PUBLIC")
-	if vapidPublicKey == "" {
-		panic(fmt.Errorf("VAPID_PUBLIC was not set"))
-	}
-
-	vapidPrivateKey := os.Getenv("VAPID_PRIVATE")
-	if vapidPrivateKey == "" {
+	privateVapidKey := os.Getenv("VAPID_PRIVATE")
+	if privateVapidKey == "" {
 		panic(fmt.Errorf("VAPID_PRIVATE was not set"))
 	}
 
+	publicVapidKey := os.Getenv("VAPID_PUBLIC")
+	if publicVapidKey == "" {
+		panic(fmt.Errorf("VAPID_PUBLIC was not set"))
+	}
+
+	pushNotificationSub := os.Getenv("PUSH_SUB")
+	if pushNotificationSub == "" {
+		panic(fmt.Errorf("PUSH_SUB was not set"))
+	}
+
 	return &PushNotificationConfig{
-		VapidPrivateKey: vapidPrivateKey,
-		VapidPublicKey:  vapidPublicKey,
+		VapidPrivateKey: privateVapidKey,
+		VapidPublicKey:  publicVapidKey,
+		Sub:             pushNotificationSub,
 	}
 }

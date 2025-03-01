@@ -22,18 +22,26 @@ var (
 )
 
 type WebsocketController struct {
-	db              data.IDatabase
-	logger          services.Logger
-	websocketServer *services.WebsocketServer
-	audience        []string
+	db                      data.IDatabase
+	logger                  services.Logger
+	websocketServer         *services.WebsocketServer
+	audience                []string
+	pushNotificationService *services.PushNotificationService
 }
 
-func NewWebsocketController(db data.IDatabase, logger services.Logger, websocketServer *services.WebsocketServer, audience []string) *WebsocketController {
+func NewWebsocketController(
+	db data.IDatabase,
+	logger services.Logger,
+	websocketServer *services.WebsocketServer,
+	audience []string,
+	pushNotificationService *services.PushNotificationService,
+) *WebsocketController {
 	return &WebsocketController{
 		db,
 		logger,
 		websocketServer,
 		audience,
+		pushNotificationService,
 	}
 }
 
