@@ -14,6 +14,7 @@ services:
       VAPID_PRIVATE: ${VAPID_PRIVATE}
       VAPID_PUBLIC: ${VAPID_PUBLIC}
       TURNSTILE_SECRET: ${TURNSTILE_SECRET}
+      PUSH_SUB: ${PUSH_SUB}
     networks:
       - app-network
     depends_on:
