@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"tranquility/app"
 	"tranquility/data"
@@ -32,6 +33,7 @@ func (p *PushNotificationController) subscribe(w http.ResponseWriter, r *http.Re
 		handleError(w, r, p.logger, err, nil, http.StatusUnauthorized, "error")
 		return
 	}
+	p.logger.INFO(fmt.Sprintf("%s is registering for notifications", claims.Username))
 
 	var sub webpush.Subscription
 	if err := json.NewDecoder(r.Body).Decode(&sub); err != nil {

@@ -230,7 +230,7 @@ func (p *Postgres) SaveUserPushInformation(ctx context.Context, registration *we
 	}
 	tx, err := p.notificationRepo.SaveUserPushInformation(ctx, myReg, userId)
 	if err != nil {
-		return err
+		return fmt.Errorf("an error occurred while saving user push notification information: %v", err)
 	}
 	defer tx.Rollback()
 
@@ -238,7 +238,7 @@ func (p *Postgres) SaveUserPushInformation(ctx context.Context, registration *we
 		WithAction("Open", "open").
 		WithAction("Close", "close")
 	if err := p.pushNotification.SimplePush(registration, message); err != nil {
-		return err
+		return fmt.Errorf("an error occurred while sending registered push notification: %v", err)
 	}
 
 	if err := tx.Commit(); err != nil {
