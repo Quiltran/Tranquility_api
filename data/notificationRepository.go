@@ -98,3 +98,29 @@ func (n *notificationRepo) GetNotificationRecipients(ctx context.Context, userId
 
 	return output, nil
 }
+
+func (n *notificationRepo) DeleteUserPushInformation(ctx context.Context, userId int32) error {
+	tx, err := n.db.Begin()
+	if err != nil {
+		return fmt.Errorf("unable to begin transaction for deleting push notifications: %v", err)
+	}
+	defer tx.Rollback()
+	result, err := tx.ExecContext(
+		ctx,
+		`DELETE FROM notification WHERE user_id = $1`,
+		userId,
+	)
+	if err != nil {
+		return fmt.Errorf("an error occurred while executing delete push notification: %v", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("an error occurred while collecting number of push notifications deleted: %v", err)
+	}
+	if affected != 1 {
+		return fmt.Errorf("an invalid number of push notification rows were deleted")
+	}
+
+	tx.Commit()
+	return nil
+}

@@ -75,6 +75,10 @@ func main() {
 		logger,
 		database,
 	).RegisterRoutes(&server)
+	controllers.NewProfileController(
+		logger,
+		database,
+	).RegisterRoutes(&server)
 
 	mux := middleware.RequestLog(server, logger)
 	c := cors.New(cors.Options{

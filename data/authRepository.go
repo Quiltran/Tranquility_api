@@ -2,6 +2,7 @@ package data
 
 import (
 	"context"
+	"fmt"
 	"tranquility/models"
 
 	"github.com/jmoiron/sqlx"
@@ -60,6 +61,25 @@ func (a *authRepo) WebsocketLogin(ctx context.Context, userId int32, websocketTo
 	).StructScan(&output)
 	if err != nil {
 		return nil, err
+	}
+
+	return &output, nil
+}
+
+func (a *authRepo) GetUserProfile(ctx context.Context, userId int32) (*models.Profile, error) {
+	var output models.Profile
+
+	err := a.db.QueryRowxContext(
+		ctx,
+		`SELECT
+			a.username,
+			a.email,
+			EXISTS(SELECT 1 FROM notification WHERE user_id = a.id) AS notification_registered
+		FROM auth a WHERE a.id = $1`,
+		userId,
+	).StructScan(&output)
+	if err != nil {
+		return nil, fmt.Errorf("An error occurred while collecting profile information for %d: %v", userId, err)
 	}
 
 	return &output, nil
