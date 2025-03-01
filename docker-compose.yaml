@@ -13,6 +13,7 @@ services:
       JWT_SECRET: ${JWT_SECRET:?}
       VAPID_PRIVATE: ${VAPID_PRIVATE}
       VAPID_PUBLIC: ${VAPID_PUBLIC}
+      TURNSTILE_SECRET: ${TURNSTILE_SECRET}
     networks:
       - app-network
     depends_on:
