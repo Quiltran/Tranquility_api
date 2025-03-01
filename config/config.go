@@ -16,6 +16,7 @@ type Config struct {
 	AllowedOrigins   []string
 	TurnstileSecret  string
 	*JWTConfig
+	*PushNotificationConfig
 }
 
 type JWTConfig struct {
@@ -23,6 +24,12 @@ type JWTConfig struct {
 	Issuer   string
 	Audience []string
 	Key      string
+}
+
+type PushNotificationConfig struct {
+	VapidPrivateKey string
+	VapidPublicKey  string
+	Sub             string
 }
 
 func NewConfig() (*Config, error) {
@@ -46,6 +53,17 @@ func NewConfig() (*Config, error) {
 		return nil, errors.New("TURNSTILE_SECRET was not set")
 	}
 
+	return &Config{
+		ConnectionString:       connectionString,
+		UploadPath:             uploadPath,
+		AllowedOrigins:         origins,
+		TurnstileSecret:        turnstileSecret,
+		JWTConfig:              loadJWTConfig(),
+		PushNotificationConfig: loadPushNotificationConfig(),
+	}, nil
+}
+
+func loadJWTConfig() *JWTConfig {
 	jwtConfig := &JWTConfig{
 		Lifetime: time.Duration(2 * time.Minute),
 		Issuer:   "api.quiltran.com",
@@ -80,11 +98,28 @@ func NewConfig() (*Config, error) {
 		jwtConfig.Key = jwtSecret
 	}
 
-	return &Config{
-		ConnectionString: connectionString,
-		UploadPath:       uploadPath,
-		AllowedOrigins:   origins,
-		TurnstileSecret:  turnstileSecret,
-		JWTConfig:        jwtConfig,
-	}, nil
+	return jwtConfig
+}
+
+func loadPushNotificationConfig() *PushNotificationConfig {
+	privateVapidKey := os.Getenv("VAPID_PRIVATE")
+	if privateVapidKey == "" {
+		panic(fmt.Errorf("VAPID_PRIVATE was not set"))
+	}
+
+	publicVapidKey := os.Getenv("VAPID_PUBLIC")
+	if publicVapidKey == "" {
+		panic(fmt.Errorf("VAPID_PUBLIC was not set"))
+	}
+
+	pushNotificationSub := os.Getenv("PUSH_SUB")
+	if pushNotificationSub == "" {
+		panic(fmt.Errorf("PUSH_SUB was not set"))
+	}
+
+	return &PushNotificationConfig{
+		VapidPrivateKey: privateVapidKey,
+		VapidPublicKey:  publicVapidKey,
+		Sub:             pushNotificationSub,
+	}
 }

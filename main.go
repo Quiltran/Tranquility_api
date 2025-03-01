@@ -31,8 +31,9 @@ func main() {
 	fileHandler := services.NewFileHandler(config.UploadPath)
 	jwtHandler := services.NewJWTHandler(config.JWTConfig)
 	cloudflare := services.NewCloudflareService(config.TurnstileSecret, logger)
+	pushNotification := services.NewPushNotificationService(config.PushNotificationConfig, logger)
 
-	database, err := data.CreatePostgres(config.ConnectionString, fileHandler, jwtHandler, cloudflare)
+	database, err := data.CreatePostgres(config.ConnectionString, fileHandler, jwtHandler, cloudflare, pushNotification)
 	if err != nil {
 		panic(err)
 	}
@@ -64,8 +65,13 @@ func main() {
 		logger,
 		websocketServer,
 		config.JWTConfig.Audience,
+		pushNotification,
 	).RegisterRoutes(&server)
 	controllers.NewMemberController(
+		logger,
+		database,
+	).RegisterRoutes(&server)
+	controllers.NewPushNotificationController(
 		logger,
 		database,
 	).RegisterRoutes(&server)

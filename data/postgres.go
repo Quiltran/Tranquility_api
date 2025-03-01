@@ -8,6 +8,7 @@ import (
 	"tranquility/models"
 	"tranquility/services"
 
+	"github.com/SherClockHolmes/webpush-go"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 )
@@ -22,26 +23,36 @@ type Postgres struct {
 	guildRepo
 	messageRepo
 	memberRepo
-	fileHandler *services.FileHandler
-	jwtHandler  *services.JWTHandler
-	cloudflare  *services.CloudflareService
+	notificationRepo
+	fileHandler      *services.FileHandler
+	jwtHandler       *services.JWTHandler
+	cloudflare       *services.CloudflareService
+	pushNotification *services.PushNotificationService
 }
 
-func CreatePostgres(connectionString string, fileHandler *services.FileHandler, jwtHandler *services.JWTHandler, cloudflare *services.CloudflareService) (*Postgres, error) {
+func CreatePostgres(
+	connectionString string,
+	fileHandler *services.FileHandler,
+	jwtHandler *services.JWTHandler,
+	cloudflare *services.CloudflareService,
+	pushNotification *services.PushNotificationService,
+) (*Postgres, error) {
 	db, err := sqlx.Connect("postgres", connectionString)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Postgres{
-		authRepo:       authRepo{db},
-		attachmentRepo: attachmentRepo{db},
-		guildRepo:      guildRepo{db},
-		messageRepo:    messageRepo{db},
-		memberRepo:     memberRepo{db},
-		fileHandler:    fileHandler,
-		jwtHandler:     jwtHandler,
-		cloudflare:     cloudflare,
+		authRepo:         authRepo{db},
+		attachmentRepo:   attachmentRepo{db},
+		guildRepo:        guildRepo{db},
+		messageRepo:      messageRepo{db},
+		memberRepo:       memberRepo{db},
+		notificationRepo: notificationRepo{db},
+		fileHandler:      fileHandler,
+		jwtHandler:       jwtHandler,
+		cloudflare:       cloudflare,
+		pushNotification: pushNotification,
 	}, nil
 }
 
@@ -204,4 +215,34 @@ func (p *Postgres) GetMembers(ctx context.Context, guildId int32) ([]models.Memb
 	} else {
 		return p.memberRepo.GetNotAddedMembers(ctx, guildId)
 	}
+}
+
+func (p *Postgres) SaveUserPushInformation(ctx context.Context, registration *webpush.Subscription, userId int32) error {
+	myReg := &models.PushNotificationRegistration{
+		Endpoint: registration.Endpoint,
+		Keys: struct {
+			P256dh string "json:\"p256dh\""
+			Auth   string "json:\"auth\""
+		}{
+			P256dh: registration.Keys.P256dh,
+			Auth:   registration.Keys.Auth,
+		},
+	}
+	tx, err := p.notificationRepo.SaveUserPushInformation(ctx, myReg, userId)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	message := models.NewPushNotificationMessage("Notifications Registered", "You have been registered for push notifications.", "/", nil).
+		WithAction("Open", "open").
+		WithAction("Close", "close")
+	if err := p.pushNotification.SimplePush(registration, message); err != nil {
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("an error occurred while commiting user's push notification info: %v", err)
+	}
+	return nil
 }
