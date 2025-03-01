@@ -11,6 +11,8 @@ services:
       JWT_ISSUER: ${JWT_ISSUER:?}
       JWT_AUDIENCE: ${JWT_AUDIENCE:?}
       JWT_SECRET: ${JWT_SECRET:?}
+      VAPID_PRIVATE: ${VAPID_PRIVATE}
+      VAPID_PUBLIC: ${VAPID_PUBLIC}
     networks:
       - app-network
     depends_on:
