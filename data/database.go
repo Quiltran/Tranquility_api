@@ -10,8 +10,9 @@ import (
 )
 
 var (
-	ErrMissingPassword    = errors.New("password is required")
-	ErrInvalidCredentials = errors.New("invalid username or password")
+	ErrMissingPassword       = errors.New("password is required")
+	ErrInvalidCredentials    = errors.New("invalid username or password")
+	ErrInvalidPasswordFormat = errors.New("password did not pass standards")
 )
 
 // This interface is used when creating new controllers.

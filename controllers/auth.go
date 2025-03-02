@@ -58,8 +58,7 @@ func (a *Auth) login(w http.ResponseWriter, r *http.Request) {
 func (a *Auth) register(w http.ResponseWriter, r *http.Request) {
 	body, err := getJsonBody[models.AuthUser](r)
 	if err != nil {
-		a.logger.ERROR(err.Error())
-		http.Error(w, "Invalid Body", http.StatusBadRequest)
+		handleError(w, r, a.logger, err, nil, http.StatusBadRequest, "warning")
 		return
 	}
 
@@ -67,19 +66,19 @@ func (a *Auth) register(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrInvalidCredentials):
-			a.logger.WARNING(fmt.Sprintf("an invalid register request has been made: %v", err))
-			http.Error(w, "Invalid Body", http.StatusBadRequest)
+			handleError(w, r, a.logger, fmt.Errorf("an invalid register request has been made: %v", err), nil, http.StatusBadRequest, "warning")
+			return
+		case errors.Is(err, data.ErrInvalidPasswordFormat):
+			handleError(w, r, a.logger, fmt.Errorf("a register request has been made with invalid password: %v", err), nil, http.StatusUnauthorized, "warning")
 			return
 		default:
-			a.logger.ERROR(fmt.Sprintf("an error occurred while registering user: %v", err))
-			http.Error(w, "", http.StatusInternalServerError)
+			handleError(w, r, a.logger, fmt.Errorf("an error occurred while registering user: %v", err), nil, http.StatusInternalServerError, "error")
 			return
 		}
 	}
 
 	if err = writeJsonBody(w, user); err != nil {
-		a.logger.ERROR(err.Error())
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		handleError(w, r, a.logger, fmt.Errorf("error while responding to register: %v", err), nil, http.StatusInternalServerError, "error")
 		return
 	}
 }

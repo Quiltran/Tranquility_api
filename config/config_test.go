@@ -29,6 +29,10 @@ func TestNewConfig(t *testing.T) {
 		os.Setenv("JWT_ISSUER", "test_issuer")
 		os.Setenv("JWT_AUDIENCE", "test_audience1,test_audience2")
 		os.Setenv("JWT_SECRET", "test_secret")
+		os.Setenv("TURNSTILE_SECRET", "secret")
+		os.Setenv("VAPID_PRIVATE", "private")
+		os.Setenv("VAPID_PUBLIC", "public")
+		os.Setenv("PUSH_SUB", "sub")
 
 		cfg, err := NewConfig()
 		if err != nil {

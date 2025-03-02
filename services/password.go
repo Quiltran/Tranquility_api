@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"strings"
+	"unicode"
 
 	"golang.org/x/crypto/argon2"
 )
@@ -97,4 +98,25 @@ func VerifyPassword(password, encodedHash string) (bool, error) {
 	)
 
 	return subtle.ConstantTimeCompare(hash, comparisonHash) == 1, nil
+}
+
+func VerifyPasswordRequirements(password string) bool {
+	if len(password) < 10 {
+		return false
+	}
+
+	hasUpper, hasLower, hasSpecial := false, false, false
+
+	for _, char := range password {
+		switch {
+		case unicode.IsUpper(char):
+			hasUpper = true
+		case unicode.IsLower(char):
+			hasLower = true
+		case unicode.IsPunct(char) || unicode.IsSymbol(char):
+			hasSpecial = true
+		}
+	}
+
+	return (hasUpper && hasLower && hasSpecial)
 }

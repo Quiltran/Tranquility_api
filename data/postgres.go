@@ -93,6 +93,10 @@ func (p *Postgres) Register(ctx context.Context, user *models.AuthUser, ip strin
 		return nil, ErrInvalidCredentials
 	}
 
+	if validPassword := services.VerifyPasswordRequirements(user.Password); !validPassword {
+		return nil, ErrInvalidPasswordFormat
+	}
+
 	if ok, err := p.cloudflare.VerifyTurnstile(user.Turnstile, ip); err != nil {
 		return nil, err
 	} else if !ok {
