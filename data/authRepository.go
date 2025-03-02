@@ -2,6 +2,8 @@ package data
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"tranquility/models"
 
@@ -17,9 +19,11 @@ func (a *authRepo) Login(ctx context.Context, user *models.AuthUser) (*models.Au
 	err := a.db.QueryRowxContext(
 		ctx,
 		"SELECT id, username, password, refresh_token, websocket_token FROM auth WHERE username = $1",
-		// "INSERT INTO auth (username, password, email) VALUES (:username, :last_name, :email) RETURNING id, username, email, refresh_token;",
 		&user.Username,
 	).StructScan(&output)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrInvalidCredentials
+	}
 
 	return &output, err
 }

@@ -64,7 +64,7 @@ func (p *Postgres) Login(ctx context.Context, user *models.AuthUser, ip string) 
 	if ok, err := p.cloudflare.VerifyTurnstile(user.Turnstile, ip); err != nil {
 		return nil, err
 	} else if !ok {
-		return nil, fmt.Errorf("turnstile was rejected")
+		return nil, fmt.Errorf("turnstile was rejected while logging in")
 	}
 
 	credentials, err := p.authRepo.Login(ctx, user)

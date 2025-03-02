@@ -30,8 +30,7 @@ func (a *Auth) RegisterRoutes(app *app.App) {
 func (a *Auth) login(w http.ResponseWriter, r *http.Request) {
 	body, err := getJsonBody[models.AuthUser](r)
 	if err != nil {
-		a.logger.ERROR(fmt.Sprintf("error parsing request body: %v", err))
-		http.Error(w, "Invalid Body", http.StatusBadRequest)
+		handleError(w, r, a.logger, err, nil, http.StatusBadRequest, "warning")
 		return
 	}
 
@@ -39,23 +38,19 @@ func (a *Auth) login(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrInvalidCredentials):
-			a.logger.WARNING(fmt.Errorf("an invalid login attempt occurred for %s: %v", body.Username, err).Error())
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			handleError(w, r, a.logger, err, nil, http.StatusUnauthorized, "warning")
 			return
 		case errors.Is(err, data.ErrMissingPassword):
-			a.logger.WARNING(err.Error())
-			http.Error(w, "Bad Request", http.StatusBadRequest)
+			handleError(w, r, a.logger, err, nil, http.StatusBadRequest, "warning")
 			return
 		default:
-			a.logger.ERROR(err.Error())
-			http.Error(w, "", http.StatusInternalServerError)
+			handleError(w, r, a.logger, err, nil, http.StatusInternalServerError, "error")
 			return
 		}
 	}
 
 	if err = writeJsonBody(w, user); err != nil {
-		a.logger.ERROR(err.Error())
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		handleError(w, r, a.logger, fmt.Errorf("error while logging in: %v", err), nil, http.StatusInternalServerError, "error")
 		return
 	}
 }
