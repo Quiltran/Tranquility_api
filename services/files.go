@@ -25,7 +25,7 @@ func (f *FileHandler) StoreFile(file *multipart.File, fileName string) (string, 
 
 	filePath := path.Join(f.uploadPath, fileName)
 
-	outputFile, err := os.OpenFile(filePath, os.O_CREATE|os.O_TRUNC, 0666)
+	outputFile, err := os.OpenFile(filePath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0666)
 	if err != nil {
 		return "", "", fmt.Errorf("an error occurred while opening output file: %v", err)
 	}
