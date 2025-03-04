@@ -195,7 +195,7 @@ func (wc *WebsocketController) handleIncomingMessage(ctx context.Context, user *
 	switch message.Type {
 	case "message":
 		data := message.Data.(*models.Message)
-		if data.Content == "" {
+		if data.Content == "" && len(data.AttachmentIDs) == 0 {
 			return nil, nil, ErrNoMessageSent
 		}
 		output, err := wc.db.CreateMessage(ctx, data, user.ID)
