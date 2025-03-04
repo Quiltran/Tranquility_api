@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -19,7 +20,8 @@ import (
 )
 
 var (
-	clientTimeout = 10 * time.Second
+	clientTimeout    = 10 * time.Second
+	ErrNoMessageSent = errors.New("no message data was sent from the user")
 )
 
 type WebsocketController struct {
@@ -128,6 +130,10 @@ func (wc *WebsocketController) Websocket(w http.ResponseWriter, r *http.Request)
 		case msg := <-incoming:
 			msg, receivers, err := wc.handleIncomingMessage(ctx, user, msg)
 			if err != nil {
+				if errors.Is(err, ErrNoMessageSent) {
+					wc.logger.WARNING(fmt.Sprintf("%s sent an empty message over the websocket: %v", user.Username, err))
+					continue
+				}
 				wc.logger.ERROR(fmt.Sprintf("an error occurred while handling request: %v", err))
 				if msg == nil {
 					wc.logger.ERROR("ending incoming message execution")
@@ -189,6 +195,9 @@ func (wc *WebsocketController) handleIncomingMessage(ctx context.Context, user *
 	switch message.Type {
 	case "message":
 		data := message.Data.(*models.Message)
+		if data.Content == "" {
+			return nil, nil, ErrNoMessageSent
+		}
 		output, err := wc.db.CreateMessage(ctx, data, user.ID)
 		if err != nil {
 			return nil, nil, err
