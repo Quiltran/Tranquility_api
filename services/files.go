@@ -27,16 +27,16 @@ func (f *FileHandler) StoreFile(file *multipart.File, fileName string) (string, 
 
 	outputFile, err := os.OpenFile(filePath, os.O_CREATE|os.O_TRUNC, 0666)
 	if err != nil {
-		return "", "", err
+		return "", "", fmt.Errorf("an error occurred while opening output file: %v", err)
 	}
 	defer outputFile.Close()
 
 	_, err = io.Copy(outputFile, *file)
 	if err != nil {
-		return "", "", err
+		return "", "", fmt.Errorf("an error occurred while copying temp file into file: %v", err)
 	}
 
-	return fileName, filePath, err
+	return fileName, filePath, nil
 }
 
 func (f *FileHandler) GetFileUrl(fileName string) (string, error) {
