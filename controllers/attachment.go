@@ -24,6 +24,8 @@ func NewAttachmentController(logger services.Logger, fileHandler *services.FileH
 func (a *Attachment) RegisterRoutes(app *app.App) {
 	app.AddSecureRoute("POST", "/api/attachment", a.uploadAttachment)
 	app.AddSecureRoute("DELETE", "/api/attachment/{id}", a.deleteAttachment)
+	fs := http.FileServer(http.Dir("./uploads"))
+	app.AddRoute("GET", "/api/attachment/", http.StripPrefix("/api/attachment/", fs).ServeHTTP)
 }
 
 func (a *Attachment) uploadAttachment(w http.ResponseWriter, r *http.Request) {

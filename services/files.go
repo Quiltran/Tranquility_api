@@ -1,6 +1,7 @@
 package services
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -36,6 +37,19 @@ func (f *FileHandler) StoreFile(file *multipart.File, fileName string) (string, 
 	}
 
 	return fileName, filePath, err
+}
+
+func (f *FileHandler) GetFileUrl(fileName string) (string, error) {
+	filePath := path.Join(f.uploadPath, fileName)
+	_, err := os.Stat(filePath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return "", fmt.Errorf("the file provided does not exist: %v", err)
+		}
+		return "", err
+	}
+
+	return "/api/attachment/" + fileName, nil
 }
 
 func (f *FileHandler) DeleteFile(fileName string) error {

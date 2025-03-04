@@ -2,6 +2,9 @@ package data
 
 import (
 	"context"
+	"database/sql"
+	"errors"
+	"fmt"
 	"tranquility/models"
 
 	"github.com/jmoiron/sqlx"
@@ -82,10 +85,15 @@ func (m *messageRepo) GetChannelMessages(ctx context.Context, userId, guildId, c
 	return output, nil
 }
 
-func (m *messageRepo) CreateMessage(ctx context.Context, message *models.Message, userId int32) (*models.Message, error) {
+func (m *messageRepo) CreateMessage(ctx context.Context, message *models.Message, userId int32) (*sqlx.Tx, *models.Message, error) {
 	var output models.Message
 
-	err := m.db.QueryRowxContext(
+	tx, err := m.db.Beginx()
+	if err != nil {
+		return nil, nil, fmt.Errorf("unable to create transaction while creating message")
+	}
+
+	err = tx.QueryRowxContext(
 		ctx,
 		`WITH im AS (
 			INSERT INTO message (author_id, channel_id, content)
@@ -118,8 +126,63 @@ func (m *messageRepo) CreateMessage(ctx context.Context, message *models.Message
 	).StructScan(&output)
 
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return &output, nil
+	return tx, &output, nil
+}
+
+func (m *messageRepo) CreateAttachmentMapping(ctx context.Context, tx *sqlx.Tx, messageId, attachmentId int32) error {
+	result, err := tx.ExecContext(
+		ctx,
+		`INSERT INTO attachment_mapping (post_id, attachment_id) VALUES ($1, $2)`,
+		&messageId,
+		&attachmentId,
+	)
+	if err != nil {
+		return fmt.Errorf("an error occurred while inserting into attachment mapping: %s", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("an error occurred while getting the number of rows affected while inserting into attachment mapping: %s", err)
+	}
+	if rowsAffected != 1 {
+		return fmt.Errorf("more than one attachment mapping was created while inserting attachment for %d", messageId)
+	}
+
+	return nil
+}
+
+func (m *messageRepo) GetMessageAttachment(ctx context.Context, messageID int32) ([]models.Attachment, error) {
+	var attachments []models.Attachment
+	rows, err := m.db.QueryxContext(
+		ctx,
+		`SELECT id, file_name, file_path
+		FROM attachment a
+		JOIN attachment_mapping am on am.attachment_id = a.id
+		WHERE am.post_id = $1`,
+		&messageID,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("an error occurred while selecting message attachment information: %v", err)
+	}
+
+	for rows.Next() {
+		var attachment models.Attachment
+		if err := rows.Scan(
+			&attachment.ID,
+			&attachment.FileName,
+			&attachment.FilePath,
+		); err != nil {
+			return nil, fmt.Errorf("an error occurred while scanning attachment information: %v", err)
+		}
+
+		attachments = append(attachments, attachment)
+	}
+
+	return attachments, nil
 }

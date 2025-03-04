@@ -250,3 +250,61 @@ func (p *Postgres) SaveUserPushInformation(ctx context.Context, registration *we
 	}
 	return nil
 }
+
+func (p *Postgres) CreateMessage(ctx context.Context, message *models.Message, userId int32) (*models.Message, error) {
+	tx, messageData, err := p.messageRepo.CreateMessage(ctx, message, userId)
+	if err != nil {
+		return nil, fmt.Errorf("an error occurred while creating message: %s", err)
+	}
+	defer tx.Rollback()
+
+	if message.AttachmentIDs != nil {
+		for _, attachment := range message.AttachmentIDs {
+			if err := p.messageRepo.CreateAttachmentMapping(ctx, tx, messageData.ID, attachment); err != nil {
+				return nil, fmt.Errorf("an error occurred while creating attachment mapping")
+			}
+		}
+	}
+
+	tx.Commit()
+
+	attachments, err := p.messageRepo.GetMessageAttachment(ctx, messageData.ID)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get message attachment while creating: %v", err)
+	}
+	for i := range attachments {
+		url, err := p.fileHandler.GetFileUrl(attachments[i].FileName)
+		if err != nil {
+			return nil, fmt.Errorf("unable to get url path for message attachment while submitting: %v", err)
+		}
+		messageData.Attachment = append(messageData.Attachment, url)
+	}
+
+	return messageData, nil
+}
+
+func (p *Postgres) GetChannelMessages(ctx context.Context, userId, guildId, channelId, pageNumber int32) ([]models.Message, error) {
+	messages, err := p.messageRepo.GetChannelMessages(ctx, userId, guildId, channelId, pageNumber)
+	if err != nil {
+		return nil, fmt.Errorf("an error occurred while getting channel messages: %v", err)
+	}
+
+	for i := range messages {
+		attachments, err := p.messageRepo.GetMessageAttachment(ctx, messages[i].ID)
+		if err != nil {
+			return nil, fmt.Errorf("unable toget message attachment: %v", err)
+		}
+		for _, attachment := range attachments {
+			url, err := p.fileHandler.GetFileUrl(attachment.FileName)
+			if err != nil {
+				return nil, fmt.Errorf("unable to get url path for message attachment: %v", err)
+			}
+			if messages[i].Attachment == nil {
+				messages[i].Attachment = make([]string, 0)
+			}
+			messages[i].Attachment = append(messages[i].Attachment, url)
+		}
+	}
+
+	return messages, nil
+}
