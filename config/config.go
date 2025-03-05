@@ -17,6 +17,7 @@ type Config struct {
 	TurnstileSecret  string
 	*JWTConfig
 	*PushNotificationConfig
+	*WebAuthnConfig
 }
 
 type JWTConfig struct {
@@ -24,6 +25,12 @@ type JWTConfig struct {
 	Issuer   string
 	Audience []string
 	Key      string
+}
+
+type WebAuthnConfig struct {
+	RPDisplayName string
+	RPID          string
+	RPOrigins     []string
 }
 
 type PushNotificationConfig struct {
@@ -60,6 +67,7 @@ func NewConfig() (*Config, error) {
 		TurnstileSecret:        turnstileSecret,
 		JWTConfig:              loadJWTConfig(),
 		PushNotificationConfig: loadPushNotificationConfig(),
+		WebAuthnConfig:         loadWebAuthnConfig(),
 	}, nil
 }
 
@@ -121,5 +129,32 @@ func loadPushNotificationConfig() *PushNotificationConfig {
 		VapidPrivateKey: privateVapidKey,
 		VapidPublicKey:  publicVapidKey,
 		Sub:             pushNotificationSub,
+	}
+}
+
+func loadWebAuthnConfig() *WebAuthnConfig {
+	displayName := os.Getenv("RP_DISPLAY_NAME")
+	if displayName == "" {
+		panic("RP_DISPLAY_NAME was not set")
+	}
+
+	rpId := os.Getenv("RPID")
+	if rpId == "" {
+		panic("RPID was not set")
+	}
+
+	rpOrigins := strings.Split(os.Getenv("RP_ORIGINS"), ",")
+	if len(rpOrigins) == 0 {
+		panic("RP_ORIGINS was not set")
+	}
+	for i := range rpOrigins {
+		if rpOrigins[i] == "" {
+			panic(fmt.Sprintf("Invalid RP_ORIGINS were dectected: %v+", rpOrigins))
+		}
+	}
+	return &WebAuthnConfig{
+		RPDisplayName: displayName,
+		RPID:          rpId,
+		RPOrigins:     rpOrigins,
 	}
 }
