@@ -77,9 +77,13 @@ func loadJWTConfig() *JWTConfig {
 		panic(fmt.Errorf("an error occurred while decoding JWE private key"))
 	}
 
-	privateKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+	privateKey, err := x509.ParsePKCS8PrivateKey(block.Bytes)
 	if err != nil {
 		panic(fmt.Errorf("an error occurred while parsing JWE private key: %v", err))
+	}
+	rsaKey, ok := privateKey.(*rsa.PrivateKey)
+	if !ok {
+		panic(fmt.Errorf("an error occurred while converting JWE private key to RSA: %v", err))
 	}
 
 	lifetimeSetting := os.Getenv("JWT_LIFETIME")
@@ -96,12 +100,12 @@ func loadJWTConfig() *JWTConfig {
 	}
 
 	issuer := os.Getenv("JWT_ISSUER")
-	if issuer != "" {
+	if issuer == "" {
 		panic(fmt.Errorf("JWT_ISSUER was not set"))
 	}
 
 	audienceSetting := os.Getenv("JWT_AUDIENCE")
-	if audienceSetting != "" {
+	if audienceSetting == "" {
 		panic(fmt.Errorf("JWT_AUDIENCE was not set"))
 	}
 	audience := strings.Split(audienceSetting, ",")
@@ -117,7 +121,7 @@ func loadJWTConfig() *JWTConfig {
 		Issuer:        issuer,
 		Audience:      audience,
 		Key:           jwtSecret,
-		JWEPrivateKey: privateKey,
+		JWEPrivateKey: rsaKey,
 	}
 
 	return jwtConfig
