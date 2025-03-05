@@ -15,4 +15,7 @@ require (
 	golang.org/x/time v0.10.0
 )
 
-require golang.org/x/sys v0.30.0 // indirect
+require (
+	github.com/go-webauthn/webauthn v0.12.1 // indirect
+	golang.org/x/sys v0.30.0 // indirect
+)
