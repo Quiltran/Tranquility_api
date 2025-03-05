@@ -5,6 +5,7 @@ go 1.23.3
 require (
 	github.com/SherClockHolmes/webpush-go v1.4.0
 	github.com/coder/websocket v1.8.12
+	github.com/go-jose/go-jose/v4 v4.0.5
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/google/uuid v1.6.0
 	github.com/jmoiron/sqlx v1.4.0

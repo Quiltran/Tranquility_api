@@ -7,6 +7,7 @@ import (
 	"tranquility/config"
 	"tranquility/models"
 
+	"github.com/go-jose/go-jose/v4"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -24,6 +25,39 @@ func NewJWTHandler(config *config.JWTConfig) *JWTHandler {
 	return &JWTHandler{config}
 }
 
+func (j *JWTHandler) encryptToken(token string) (string, error) {
+	encryptor, err := jose.NewEncrypter(jose.A128GCM, jose.Recipient{Algorithm: jose.RSA_OAEP, Key: &j.JWEPrivateKey.PublicKey}, nil)
+	if err != nil {
+		return "", fmt.Errorf("an error occurred while creating encrypter: %v", err)
+	}
+
+	jweObject, err := encryptor.Encrypt([]byte(token))
+	if err != nil {
+		return "", fmt.Errorf("an error occurred while encrypting JWT: %v", err)
+	}
+
+	compact, err := jweObject.CompactSerialize()
+	if err != nil {
+		return "", fmt.Errorf("an error occurred while serializing JWE: %v", err)
+	}
+
+	return compact, nil
+}
+
+func (j *JWTHandler) decryptToken(encrypted string) (string, error) {
+	parsedCompact, err := jose.ParseEncrypted(encrypted, []jose.KeyAlgorithm{jose.RSA_OAEP}, []jose.ContentEncryption{jose.A128GCM})
+	if err != nil {
+		return "", fmt.Errorf("an error occurred while parsing JWE: %v", err)
+	}
+
+	tokenBytes, err := parsedCompact.Decrypt(&j.JWEPrivateKey)
+	if err != nil {
+		return "", fmt.Errorf("an error occurred while decrypting JWE: %v", err)
+	}
+
+	return string(tokenBytes), nil
+}
+
 func (j *JWTHandler) GenerateToken(user *models.AuthUser) (string, error) {
 	claims := Claims{
 		user.Username,
@@ -38,12 +72,27 @@ func (j *JWTHandler) GenerateToken(user *models.AuthUser) (string, error) {
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(j.Key))
+	signedString, err := token.SignedString([]byte(j.Key))
+	if err != nil {
+		return "", fmt.Errorf("an error occurred while signing JWT: %v", err)
+	}
+
+	compact, err := j.encryptToken(signedString)
+	if err != nil {
+		return "", err
+	}
+
+	return compact, err
 }
 
 func (j *JWTHandler) ParseToken(token string) (*Claims, error) {
+	decrypted, err := j.decryptToken(token)
+	if err != nil {
+		return nil, err
+	}
+
 	jwtToken, err := jwt.ParseWithClaims(
-		token,
+		decrypted,
 		&Claims{},
 		func(token *jwt.Token) (interface{}, error) {
 			return []byte(j.Key), nil

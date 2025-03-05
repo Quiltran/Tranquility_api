@@ -1,6 +1,9 @@
 package config
 
 import (
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"os"
@@ -20,10 +23,11 @@ type Config struct {
 }
 
 type JWTConfig struct {
-	Lifetime time.Duration
-	Issuer   string
-	Audience []string
-	Key      string
+	JWEPrivateKey *rsa.PrivateKey
+	Lifetime      time.Duration
+	Issuer        string
+	Audience      []string
+	Key           string
 }
 
 type PushNotificationConfig struct {
@@ -64,38 +68,56 @@ func NewConfig() (*Config, error) {
 }
 
 func loadJWTConfig() *JWTConfig {
-	jwtConfig := &JWTConfig{
-		Lifetime: time.Duration(2 * time.Minute),
-		Issuer:   "api.quiltran.com",
-		Audience: []string{"quiltran.com"},
-		Key:      "",
+	jwePem, err := os.ReadFile(os.Getenv("JWT_PRIVATE_KEY_PATH"))
+	if err != nil {
+		panic(fmt.Errorf("an error occurred while reading JWE private key: %v", err))
+	}
+	block, _ := pem.Decode(jwePem)
+	if block == nil {
+		panic(fmt.Errorf("an error occurred while decoding JWE private key"))
+	}
+
+	privateKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+	if err != nil {
+		panic(fmt.Errorf("an error occurred while parsing JWE private key: %v", err))
 	}
 
 	lifetimeSetting := os.Getenv("JWT_LIFETIME")
+	var lifetime time.Duration
 	if lifetimeSetting != "" {
 		l, err := strconv.ParseInt(lifetimeSetting, 10, 64)
 		if err != nil {
 			panic(fmt.Errorf("an error occurred while loading jwt lifetime: %v", err))
 		}
-		jwtConfig.Lifetime = time.Duration(time.Duration(l) * time.Minute)
+		lifetime = time.Duration(time.Duration(l) * time.Minute)
+	}
+	if lifetime == 0 {
+		lifetime = time.Duration(2 * time.Minute)
 	}
 
-	issuerSetting := os.Getenv("JWT_ISSUER")
-	if issuerSetting != "" {
-		jwtConfig.Issuer = issuerSetting
+	issuer := os.Getenv("JWT_ISSUER")
+	if issuer != "" {
+		panic(fmt.Errorf("JWT_ISSUER was not set"))
 	}
 
 	audienceSetting := os.Getenv("JWT_AUDIENCE")
 	if audienceSetting != "" {
-		jwtConfig.Audience = strings.Split(audienceSetting, ",")
+		panic(fmt.Errorf("JWT_AUDIENCE was not set"))
 	}
-	slices.Sort(jwtConfig.Audience)
+	audience := strings.Split(audienceSetting, ",")
+	slices.Sort(audience)
 
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
 		panic(fmt.Errorf("JWT_SECRET was not set"))
-	} else {
-		jwtConfig.Key = jwtSecret
+	}
+
+	jwtConfig := &JWTConfig{
+		Lifetime:      time.Duration(2 * time.Minute),
+		Issuer:        issuer,
+		Audience:      audience,
+		Key:           jwtSecret,
+		JWEPrivateKey: privateKey,
 	}
 
 	return jwtConfig

@@ -11,12 +11,14 @@ services:
       JWT_ISSUER: ${JWT_ISSUER:?}
       JWT_AUDIENCE: ${JWT_AUDIENCE:?}
       JWT_SECRET: ${JWT_SECRET:?}
+      JWT_PRIVATE_KEY_PATH: ${JWT_PRIVATE_KEY_PATH:?}
       VAPID_PRIVATE: ${VAPID_PRIVATE}
       VAPID_PUBLIC: ${VAPID_PUBLIC}
-      TURNSTILE_SECRET: ${TURNSTILE_SECRET}
       PUSH_SUB: ${PUSH_SUB}
+      TURNSTILE_SECRET: ${TURNSTILE_SECRET:?}
     volumes:
       - ./uploads:/app/uploads
+      - ./keys:/app/keys
     networks:
       - app-network
     depends_on:
