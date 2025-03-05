@@ -49,7 +49,7 @@ func ParseJWT(next http.Handler, logger services.Logger, jwtHandler *services.JW
 
 		claims, err := jwtHandler.ParseToken(token)
 		if err != nil {
-			logger.ERROR(fmt.Sprintf("an error occurred while verifying auth token: %v", err))
+			logger.ERROR(fmt.Sprintf("an error occurred while parsing auth token: %v", err))
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
