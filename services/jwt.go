@@ -124,8 +124,13 @@ func (j *JWTHandler) ParseToken(token string) (*Claims, error) {
 }
 
 func (j *JWTHandler) VerifyToken(token string) (*Claims, error) {
+	decrypted, err := j.decryptToken(token)
+	if err != nil {
+		return nil, err
+	}
+
 	claims, err := jwt.ParseWithClaims(
-		token,
+		decrypted,
 		&Claims{},
 		func(token *jwt.Token) (interface{}, error) {
 			return []byte(j.Key), nil
