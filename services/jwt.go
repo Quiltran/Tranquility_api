@@ -66,27 +66,12 @@ func (j *JWTHandler) GenerateToken(user *models.AuthUser) (string, error) {
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	signedString, err := token.SignedString([]byte(j.Key))
-	if err != nil {
-		return "", fmt.Errorf("an error occurred while signing JWT: %v", err)
-	}
-
-	compact, err := j.encryptToken(signedString)
-	if err != nil {
-		return "", err
-	}
-
-	return compact, err
+	return token.SignedString([]byte(j.Key))
 }
 
 func (j *JWTHandler) ParseToken(token string) (*models.Claims, error) {
-	decrypted, err := j.decryptToken(token)
-	if err != nil {
-		return nil, err
-	}
-
 	jwtToken, err := jwt.ParseWithClaims(
-		decrypted,
+		token,
 		&models.Claims{},
 		func(token *jwt.Token) (interface{}, error) {
 			return []byte(j.Key), nil
@@ -118,13 +103,8 @@ func (j *JWTHandler) ParseToken(token string) (*models.Claims, error) {
 }
 
 func (j *JWTHandler) VerifyToken(token string) (*models.Claims, error) {
-	decrypted, err := j.decryptToken(token)
-	if err != nil {
-		return nil, err
-	}
-
 	claims, err := jwt.ParseWithClaims(
-		decrypted,
+		token,
 		&models.Claims{},
 		func(token *jwt.Token) (interface{}, error) {
 			return []byte(j.Key), nil
