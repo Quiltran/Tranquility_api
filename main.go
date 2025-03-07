@@ -28,12 +28,24 @@ func main() {
 		panic(err)
 	}
 
+	webAuthn, err := services.NewWebauthn(config.WebAuthnConfig)
+	if err != nil {
+		panic("unable to create webAuthn object")
+	}
+
 	fileHandler := services.NewFileHandler(config.UploadPath)
 	jwtHandler := services.NewJWTHandler(config.JWTConfig)
 	cloudflare := services.NewCloudflareService(config.TurnstileSecret, logger)
 	pushNotification := services.NewPushNotificationService(config.PushNotificationConfig, logger)
 
-	database, err := data.CreatePostgres(config.ConnectionString, fileHandler, jwtHandler, cloudflare, pushNotification)
+	database, err := data.CreatePostgres(
+		config.ConnectionString,
+		fileHandler,
+		jwtHandler,
+		cloudflare,
+		pushNotification,
+		webAuthn,
+	)
 	if err != nil {
 		panic(err)
 	}

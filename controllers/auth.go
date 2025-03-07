@@ -25,6 +25,8 @@ func (a *Auth) RegisterRoutes(app *app.App) {
 	app.AddRoute("POST", "/api/auth/login", a.login)
 	app.AddRoute("POST", "/api/auth/register", a.register)
 	app.AddValidatedRoute("POST", "/api/auth/refresh", a.refreshToken)
+	app.AddSecureRoute("POST", "/api/webauthn/register/begin", a.beginRegistration)
+	app.AddSecureRoute("POST", "/api/webauthn/register/complete", a.completeRegistration)
 }
 
 func (a *Auth) login(w http.ResponseWriter, r *http.Request) {
@@ -122,6 +124,38 @@ func (a *Auth) refreshToken(w http.ResponseWriter, r *http.Request) {
 	if err = writeJsonBody(w, user); err != nil {
 		a.logger.ERROR(err.Error())
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+}
+
+func (a *Auth) beginRegistration(w http.ResponseWriter, r *http.Request) {
+	claims, err := getClaims(r)
+	if err != nil {
+		handleError(w, r, a.logger, fmt.Errorf("an error occurred while getting claims to begin webauthn registration: %v", err), nil, http.StatusInternalServerError, "error")
+		return
+	}
+
+	options, err := a.database.RegisterUserWebAuthn(r.Context(), claims)
+	if err != nil {
+		handleError(w, r, a.logger, fmt.Errorf("an error occurred while registering user to webauthn: %v", err), nil, http.StatusInternalServerError, "error")
+		return
+	}
+
+	if err := writeJsonBody(w, options); err != nil {
+		handleError(w, r, a.logger, fmt.Errorf("an error occurred while writing webauthn response to the body: %v", err), nil, http.StatusInternalServerError, "error")
+		return
+	}
+}
+
+func (a *Auth) completeRegistration(w http.ResponseWriter, r *http.Request) {
+	claims, err := getClaims(r)
+	if err != nil {
+		handleError(w, r, a.logger, fmt.Errorf("an error occurred while getting claims to complete webauthn registration: %v", err), nil, http.StatusInternalServerError, "error")
+		return
+	}
+
+	if err := a.database.CompleteWebauthnRegister(r.Context(), claims, r); err != nil {
+		handleError(w, r, a.logger, fmt.Errorf("an error occurred while compliting registration for user to webauthn: %v", err), nil, http.StatusInternalServerError, "error")
 		return
 	}
 }

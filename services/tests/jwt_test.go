@@ -41,7 +41,7 @@ func TestValidateToken(t *testing.T) {
 		ID:       1,
 		Username: "Steven",
 	}
-	claims := services.Claims{
+	claims := models.Claims{
 		Username: "Steven",
 		ID:       1,
 	}
