@@ -16,6 +16,9 @@ services:
       VAPID_PUBLIC: ${VAPID_PUBLIC}
       PUSH_SUB: ${PUSH_SUB}
       TURNSTILE_SECRET: ${TURNSTILE_SECRET:?}
+      RP_DISPLAY_NAME: ${RP_DISPLAY_NAME}
+      RPID: ${RPID}
+      RP_ORIGINS: ${RP_ORIGINS}
     volumes:
       - ./uploads:/app/uploads
       - ./keys:/app/keys
