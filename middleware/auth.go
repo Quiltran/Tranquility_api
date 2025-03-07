@@ -20,6 +20,11 @@ func ValidateJWT(next http.Handler, logger services.Logger, jwtHandler *services
 			return
 		}
 
+		if len(authHeader) < len("Bearer ") {
+			logger.WARNING("auth header is not the correct size")
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
 		token := authHeader[len("Bearer "):]
 
 		claims, err := jwtHandler.VerifyToken(token)
