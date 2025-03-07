@@ -34,6 +34,7 @@ type Postgres struct {
 	cloudflare       *services.CloudflareService
 	pushNotification *services.PushNotificationService
 	webAuthn         *webauthn.WebAuthn
+	webAuthnSessions *services.WebAuthnSessions
 }
 
 func CreatePostgres(
@@ -43,6 +44,7 @@ func CreatePostgres(
 	cloudflare *services.CloudflareService,
 	pushNotification *services.PushNotificationService,
 	webAuthn *webauthn.WebAuthn,
+	webAuthnSessions *services.WebAuthnSessions,
 ) (*Postgres, error) {
 	db, err := sqlx.Connect("postgres", connectionString)
 	if err != nil {
@@ -61,6 +63,7 @@ func CreatePostgres(
 		cloudflare:       cloudflare,
 		pushNotification: pushNotification,
 		webAuthn:         webAuthn,
+		webAuthnSessions: webAuthnSessions,
 	}, nil
 }
 
@@ -336,18 +339,13 @@ func (p *Postgres) RegisterUserWebAuthn(ctx context.Context, claims *models.Clai
 		return nil, fmt.Errorf("an error occurred while marshaling webauthn registration session: %v", err)
 	}
 
-	if err := p.authRepo.saveWebAuthnSession(ctx, string(claims.ID), sessionBytes); err != nil {
-		return nil, fmt.Errorf("an error occurred while saving webauthn session to the cache: %v", err)
-	}
+	p.webAuthnSessions.AddSession(string(claims.ID), sessionBytes)
 	return options, nil
 }
 
 func (p *Postgres) CompleteWebauthnRegister(ctx context.Context, claims *models.Claims, r *http.Request) error {
-	sessionBytes, err := p.authRepo.getWebAuthnSession(ctx, string(claims.ID))
+	sessionBytes, err := p.webAuthnSessions.GetSession(string(claims.ID))
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return fmt.Errorf("registration session was not found while completing webauthn registration: %v", err)
-		}
 		return fmt.Errorf("an error occurred while collecting webauthn session to complete registration: %v", err)
 	}
 
@@ -378,20 +376,14 @@ func (p *Postgres) BeginWebAuthnLogin(ctx context.Context, requestIP string) (*p
 	if err != nil {
 		return nil, fmt.Errorf("an error occurred while marshaling webauthn login session: %v", err)
 	}
-
-	if err := p.authRepo.saveWebAuthnSession(ctx, requestIP, sessionBytes); err != nil {
-		return nil, fmt.Errorf("an error occurred while saving webauthn login session to the cache: %v", err)
-	}
+	p.webAuthnSessions.AddSession(requestIP, sessionBytes)
 
 	return options, nil
 }
 
 func (p *Postgres) CompleteWebAuthnLogin(ctx context.Context, requestIP string, r *http.Request) (*models.AuthUser, error) {
-	sessionBytes, err := p.authRepo.getWebAuthnSession(ctx, requestIP)
+	sessionBytes, err := p.webAuthnSessions.GetSession(requestIP)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("login session was not found while completing webauthn login: %v", err)
-		}
 		return nil, fmt.Errorf("an error occurred while getting webauthn login session to complete: %v", err)
 	}
 
