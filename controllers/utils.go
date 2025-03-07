@@ -7,11 +7,12 @@ import (
 	"reflect"
 	"strings"
 	"tranquility/middleware"
+	"tranquility/models"
 	"tranquility/services"
 )
 
-func getClaims(r *http.Request) (*services.Claims, error) {
-	claims, ok := r.Context().Value(middleware.ClaimsContextKey).(*services.Claims)
+func getClaims(r *http.Request) (*models.Claims, error) {
+	claims, ok := r.Context().Value(middleware.ClaimsContextKey).(*models.Claims)
 	if !ok {
 		return nil, fmt.Errorf("a request was made without valid claims to refresh auth tokens")
 	}
@@ -67,14 +68,14 @@ func writeJsonBody[T any](w http.ResponseWriter, body T) error {
 	return json.NewEncoder(w).Encode(body)
 }
 
-func handleError(w http.ResponseWriter, r *http.Request, logger services.Logger, err error, claims *services.Claims, code int, logLevel string, message ...string) {
+func handleError(w http.ResponseWriter, r *http.Request, logger services.Logger, err error, claims *models.Claims, code int, logLevel string, message ...string) {
 	var requestId string
 	requestId, requestErr := getRequestID(r)
 	if requestErr != nil {
 		requestId = requestErr.Error()
 	}
 	if claims == nil {
-		claims = &services.Claims{
+		claims = &models.Claims{
 			Username: "Anonymous",
 		}
 	}

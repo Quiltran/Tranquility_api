@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 	"tranquility/middleware"
-	"tranquility/services"
+	"tranquility/models"
 )
 
 func TestGetJsonBody(t *testing.T) {
@@ -216,7 +216,7 @@ func TestHandleError(t *testing.T) {
 		w        *httptest.ResponseRecorder
 		r        *http.Request
 		err      error
-		claims   *services.Claims
+		claims   *models.Claims
 		code     int
 		logLevel string
 		wantLog  string
@@ -227,7 +227,7 @@ func TestHandleError(t *testing.T) {
 			w:        httptest.NewRecorder(),
 			r:        &requestWId,
 			err:      errors.New("test error"),
-			claims:   &services.Claims{Username: "testUser"},
+			claims:   &models.Claims{Username: "testUser"},
 			code:     http.StatusBadRequest,
 			logLevel: "ERROR",
 			wantLog:  "requestId: 123: testUser encountered error: test error",
@@ -249,7 +249,7 @@ func TestHandleError(t *testing.T) {
 			w:        httptest.NewRecorder(),
 			r:        &requestWId,
 			err:      errors.New("internal error"),
-			claims:   &services.Claims{Username: "testUser"},
+			claims:   &models.Claims{Username: "testUser"},
 			code:     http.StatusInternalServerError,
 			logLevel: "ERROR",
 			wantLog:  "requestId: 123: testUser encountered error: internal error",
@@ -260,7 +260,7 @@ func TestHandleError(t *testing.T) {
 			w:        httptest.NewRecorder(),
 			r:        &requestWOId,
 			err:      errors.New("internal error"),
-			claims:   &services.Claims{Username: "testUser"},
+			claims:   &models.Claims{Username: "testUser"},
 			code:     http.StatusInternalServerError,
 			logLevel: "ERROR",
 			wantLog:  "requestId: a request was made without a request id: testUser encountered error: internal error",

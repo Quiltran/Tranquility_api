@@ -1,6 +1,8 @@
 package models
 
-import "time"
+import (
+	"time"
+)
 
 type AuthUser struct {
 	ID              int32      `json:"id,omitempty" db:"id"`

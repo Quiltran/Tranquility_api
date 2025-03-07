@@ -2,13 +2,18 @@ package data
 
 import (
 	"context"
+	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"mime/multipart"
+	"net/http"
 	"tranquility/models"
 	"tranquility/services"
 
 	"github.com/SherClockHolmes/webpush-go"
+	"github.com/go-webauthn/webauthn/protocol"
+	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 )
@@ -28,6 +33,7 @@ type Postgres struct {
 	jwtHandler       *services.JWTHandler
 	cloudflare       *services.CloudflareService
 	pushNotification *services.PushNotificationService
+	webAuthn         *webauthn.WebAuthn
 }
 
 func CreatePostgres(
@@ -36,6 +42,7 @@ func CreatePostgres(
 	jwtHandler *services.JWTHandler,
 	cloudflare *services.CloudflareService,
 	pushNotification *services.PushNotificationService,
+	webAuthn *webauthn.WebAuthn,
 ) (*Postgres, error) {
 	db, err := sqlx.Connect("postgres", connectionString)
 	if err != nil {
@@ -53,6 +60,7 @@ func CreatePostgres(
 		jwtHandler:       jwtHandler,
 		cloudflare:       cloudflare,
 		pushNotification: pushNotification,
+		webAuthn:         webAuthn,
 	}, nil
 }
 
@@ -307,4 +315,60 @@ func (p *Postgres) GetChannelMessages(ctx context.Context, userId, guildId, chan
 	}
 
 	return messages, nil
+}
+
+func (p *Postgres) RegisterUserWebAuthn(ctx context.Context, claims *models.Claims) (*protocol.CredentialCreation, error) {
+	credentials, err := services.NewWebAuthnCred(claims.Username, claims.Username)
+	if err != nil {
+		return nil, fmt.Errorf("an error occurred while creating credentials while webauthn registration: %v", err)
+	}
+	options, session, err := p.webAuthn.BeginRegistration(
+		credentials,
+		webauthn.WithResidentKeyRequirement(protocol.ResidentKeyRequirementRequired),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	sessionBytes, err := json.Marshal(&session)
+	if err != nil {
+		return nil, fmt.Errorf("an error occurred while marshaling webauthn registration session: %v", err)
+	}
+
+	if err := p.authRepo.saveWebAuthnRegistrationSession(ctx, claims.ID, sessionBytes); err != nil {
+		return nil, fmt.Errorf("an error occurred while saving webauthn session to the cache: %v", err)
+	}
+	return options, nil
+}
+
+func (p *Postgres) CompleteWebauthnRegister(ctx context.Context, claims *models.Claims, r *http.Request) error {
+	credentials, err := services.NewWebAuthnCred(claims.Username, claims.Username)
+	if err != nil {
+		return fmt.Errorf("an error occurred while creating credentials while completing webauthn registration: %v", err)
+	}
+
+	sessionBytes, err := p.authRepo.getWebAuthnRegistrationSession(ctx, claims.ID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("registration session was not found while completing webauthn registration: %v", err)
+		}
+		return fmt.Errorf("an error occurred while collecting webauthn session to complete registration: %v", err)
+	}
+
+	var session webauthn.SessionData
+	if err := json.Unmarshal(sessionBytes, &session); err != nil {
+		return fmt.Errorf("an error occurred to unmarshal webauthn registration session in order to complete: %v", err)
+	}
+	credentials.Id = session.UserID
+
+	credential, err := p.webAuthn.FinishRegistration(credentials, session, r)
+	if err != nil {
+		return fmt.Errorf("an error occurred while finishing webauthn registration: %v", err)
+	}
+
+	if err := p.authRepo.saveWebAuthnCredential(ctx, credential, claims.ID); err != nil {
+		return fmt.Errorf("an error occurred while saving webauthn credentials to the database after completing registration: %v", err)
+	}
+
+	return nil
 }

@@ -10,12 +10,6 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-type Claims struct {
-	Username string `json:"username"`
-	ID       int32  `json:"id"`
-	*jwt.RegisteredClaims
-}
-
 type JWTHandler struct {
 	*config.JWTConfig
 }
@@ -25,7 +19,7 @@ func NewJWTHandler(config *config.JWTConfig) *JWTHandler {
 }
 
 func (j *JWTHandler) GenerateToken(user *models.AuthUser) (string, error) {
-	claims := Claims{
+	claims := models.Claims{
 		user.Username,
 		user.ID,
 		&jwt.RegisteredClaims{
@@ -41,10 +35,10 @@ func (j *JWTHandler) GenerateToken(user *models.AuthUser) (string, error) {
 	return token.SignedString([]byte(j.Key))
 }
 
-func (j *JWTHandler) ParseToken(token string) (*Claims, error) {
+func (j *JWTHandler) ParseToken(token string) (*models.Claims, error) {
 	jwtToken, err := jwt.ParseWithClaims(
 		token,
-		&Claims{},
+		&models.Claims{},
 		func(token *jwt.Token) (interface{}, error) {
 			return []byte(j.Key), nil
 		},
@@ -54,7 +48,7 @@ func (j *JWTHandler) ParseToken(token string) (*Claims, error) {
 		return nil, err
 	}
 
-	claims, ok := jwtToken.Claims.(*Claims)
+	claims, ok := jwtToken.Claims.(*models.Claims)
 	if !ok {
 		return nil, fmt.Errorf("claims provided was not valid: %+v", err)
 	}
@@ -74,17 +68,17 @@ func (j *JWTHandler) ParseToken(token string) (*Claims, error) {
 	return claims, nil
 }
 
-func (j *JWTHandler) VerifyToken(token string) (*Claims, error) {
+func (j *JWTHandler) VerifyToken(token string) (*models.Claims, error) {
 	claims, err := jwt.ParseWithClaims(
 		token,
-		&Claims{},
+		&models.Claims{},
 		func(token *jwt.Token) (interface{}, error) {
 			return []byte(j.Key), nil
 		})
 
 	if err != nil {
 		return nil, fmt.Errorf("an error occurred while parsing JWT: %v", err)
-	} else if claims, ok := claims.Claims.(*Claims); ok {
+	} else if claims, ok := claims.Claims.(*models.Claims); ok {
 		return claims, nil
 	} else {
 		return nil, fmt.Errorf("claims provided was not valid: %v", err)

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"tranquility/models"
 
+	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -87,4 +88,88 @@ func (a *authRepo) GetUserProfile(ctx context.Context, userId int32) (*models.Pr
 	}
 
 	return &output, nil
+}
+
+func (a *authRepo) saveWebAuthnRegistrationSession(ctx context.Context, userId int32, sessionData []byte) error {
+	tx, err := a.db.Beginx()
+	if err != nil {
+		return fmt.Errorf("an error occurred while beginning transaction to save webauthn registration session: %v", err)
+	}
+	defer tx.Rollback()
+
+	affected, err := tx.ExecContext(
+		ctx,
+		`INSERT INTO webauthn_cache (key,value) VALUES ($1, $2);`,
+		&userId,
+		&sessionData,
+	)
+	if err != nil {
+		return fmt.Errorf("an error occurred while saving webauthn registration session: %v", err)
+	}
+
+	rows, err := affected.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("an error occurred while getting number of rows affected by saving webauthn registration session: %v", err)
+	}
+	if rows != 1 {
+		return fmt.Errorf("more than one row was affected when saving webauthn registration session: %v", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("an error occured while commiting saving webauthn registration session: %v", err)
+	}
+	return nil
+}
+
+func (a *authRepo) getWebAuthnRegistrationSession(ctx context.Context, userId int32) ([]byte, error) {
+	var session []byte
+
+	err := a.db.QueryRowxContext(
+		ctx,
+		`SELECT value FROM webauthn_cache WHERE key = $1`,
+		&userId,
+	).Scan(&session)
+	if err != nil {
+		return nil, err
+	}
+
+	return session, nil
+}
+
+func (a *authRepo) saveWebAuthnCredential(ctx context.Context, credentials *webauthn.Credential, userId int32) error {
+	tx, err := a.db.Beginx()
+	if err != nil {
+		return fmt.Errorf("an error occurred while beginning a transaction to save webauthn credentials: %v", err)
+	}
+	defer tx.Rollback()
+
+	affected, err := tx.ExecContext(
+		ctx,
+		`INSERT INTO webauthn_credentials (
+			user_id,
+			credential_id,
+			public_key,
+			signature_count
+		) VALUES ($1, $2, $3, $4)`,
+		&userId,
+		&credentials.ID,
+		&credentials.PublicKey,
+		&credentials.Authenticator.SignCount,
+	)
+	if err != nil {
+		return fmt.Errorf("an error occurred while saving auth credentials after completing webauthn registration: %v", err)
+	}
+
+	rows, err := affected.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("an error occurred while getting number of rows affected while saving webauthn credentials: %v", err)
+	}
+	if rows != 1 {
+		return fmt.Errorf("more than one record was affected while saving webauthn credentials: %v", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("an error occured while commiting saving webauthn credentials: %v", err)
+	}
+	return nil
 }
