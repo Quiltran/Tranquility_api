@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"mime/multipart"
+	"net/http"
 	"tranquility/models"
 
 	"github.com/SherClockHolmes/webpush-go"
+	"github.com/go-webauthn/webauthn/protocol"
 )
 
 var (
@@ -22,6 +24,10 @@ type IDatabase interface {
 	Register(ctx context.Context, user *models.AuthUser, ip string) (*models.AuthUser, error)
 	RefreshToken(ctx context.Context, user *models.AuthUser) (*models.AuthUser, error)
 	WebsocketLogin(ctx context.Context, userId int32, websocketToken string) (*models.AuthUser, error)
+	RegisterUserWebAuthn(ctx context.Context, claims *models.Claims) (*protocol.CredentialCreation, error)
+	CompleteWebauthnRegister(ctx context.Context, claims *models.Claims, r *http.Request) error
+	BeginWebAuthnLogin(ctx context.Context, requestIP string) (*protocol.CredentialAssertion, error)
+	CompleteWebAuthnLogin(ctx context.Context, requestIP string, r *http.Request) (*models.AuthUser, error)
 
 	// Attachment
 	CreateAttachment(ctx context.Context, file *multipart.File, attachment *models.Attachment) (*models.Attachment, error)

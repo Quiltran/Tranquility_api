@@ -16,6 +16,9 @@ services:
       VAPID_PUBLIC: ${VAPID_PUBLIC}
       PUSH_SUB: ${PUSH_SUB}
       TURNSTILE_SECRET: ${TURNSTILE_SECRET:?}
+      RP_DISPLAY_NAME: ${RP_DISPLAY_NAME}
+      RPID: ${RPID}
+      RP_ORIGINS: ${RP_ORIGINS}
     volumes:
       - ./uploads:/app/uploads
       - ./keys:/app/keys
@@ -47,6 +50,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:?}
     volumes:
       - ./database_scripts:/docker-entrypoint-initdb.d
+      - postgres_data:/var/lib/postgresql/data
     networks:
       - app-network
     ports:
@@ -57,3 +61,5 @@ networks:
   app-network:
     name: app-network
     driver: bridge
+volumes:
+  postgres_data:
