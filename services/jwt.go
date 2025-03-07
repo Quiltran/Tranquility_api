@@ -1,6 +1,7 @@
 package services
 
 import (
+	"encoding/base64"
 	"fmt"
 	"slices"
 	"time"
@@ -53,10 +54,12 @@ func (j *JWTHandler) decryptToken(encrypted string) (string, error) {
 }
 
 func (j *JWTHandler) GenerateToken(user *models.AuthUser) (string, error) {
+	encodedUserHandle := base64.StdEncoding.EncodeToString(user.UserHandle)
+
 	claims := models.Claims{
 		Username:   user.Username,
 		ID:         user.ID,
-		UserHandle: user.UserHandle,
+		UserHandle: encodedUserHandle,
 		RegisteredClaims: &jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(j.Lifetime)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),

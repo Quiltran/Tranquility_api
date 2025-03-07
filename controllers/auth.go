@@ -27,6 +27,8 @@ func (a *Auth) RegisterRoutes(app *app.App) {
 	app.AddValidatedRoute("POST", "/api/auth/refresh", a.refreshToken)
 	app.AddSecureRoute("POST", "/api/webauthn/register/begin", a.beginRegistration)
 	app.AddSecureRoute("POST", "/api/webauthn/register/complete", a.completeRegistration)
+	app.AddRoute("POST", "/api/webauthn/login/begin", a.beginLogin)
+	app.AddRoute("POST", "/api/webauthn/login/complete", a.completeLogin)
 }
 
 func (a *Auth) login(w http.ResponseWriter, r *http.Request) {
@@ -134,6 +136,10 @@ func (a *Auth) beginRegistration(w http.ResponseWriter, r *http.Request) {
 		handleError(w, r, a.logger, fmt.Errorf("an error occurred while getting claims to begin webauthn registration: %v", err), nil, http.StatusInternalServerError, "error")
 		return
 	}
+	if claims.UserHandle == "" {
+		handleError(w, r, a.logger, fmt.Errorf("user_handle was not provided while attempting to register for webauthn"), nil, http.StatusUnauthorized, "error")
+		return
+	}
 
 	options, err := a.database.RegisterUserWebAuthn(r.Context(), claims)
 	if err != nil {
@@ -156,6 +162,32 @@ func (a *Auth) completeRegistration(w http.ResponseWriter, r *http.Request) {
 
 	if err := a.database.CompleteWebauthnRegister(r.Context(), claims, r); err != nil {
 		handleError(w, r, a.logger, fmt.Errorf("an error occurred while compliting registration for user to webauthn: %v", err), nil, http.StatusInternalServerError, "error")
+		return
+	}
+}
+
+func (a *Auth) beginLogin(w http.ResponseWriter, r *http.Request) {
+	options, err := a.database.BeginWebAuthnLogin(r.Context(), r.RemoteAddr)
+	if err != nil {
+		handleError(w, r, a.logger, fmt.Errorf("an error occurred while registering user to webauthn: %v", err), nil, http.StatusInternalServerError, "error")
+		return
+	}
+
+	if err := writeJsonBody(w, options); err != nil {
+		handleError(w, r, a.logger, fmt.Errorf("an error occurred while writing webauthn login response to the body: %v", err), nil, http.StatusInternalServerError, "error")
+		return
+	}
+}
+
+func (a *Auth) completeLogin(w http.ResponseWriter, r *http.Request) {
+	user, err := a.database.CompleteWebAuthnLogin(r.Context(), r.RemoteAddr, r)
+	if err != nil {
+		handleError(w, r, a.logger, fmt.Errorf("an error occurred while compliting registration for user to webauthn: %v", err), nil, http.StatusInternalServerError, "error")
+		return
+	}
+
+	if err = writeJsonBody(w, user); err != nil {
+		handleError(w, r, a.logger, fmt.Errorf("error while logging in: %v", err), nil, http.StatusInternalServerError, "error")
 		return
 	}
 }

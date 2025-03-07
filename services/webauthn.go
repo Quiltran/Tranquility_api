@@ -3,7 +3,6 @@ package services
 import (
 	"crypto/rand"
 	"tranquility/config"
-	"tranquility/models"
 
 	"github.com/go-webauthn/webauthn/webauthn"
 )
@@ -23,7 +22,7 @@ func NewWebauthn(config *config.WebAuthnConfig) (*webauthn.WebAuthn, error) {
 	return webAuthn, nil
 }
 
-func generateWebAuthnID() ([]byte, error) {
+func GenerateWebAuthnID() ([]byte, error) {
 	id := make([]byte, 64)
 	_, err := rand.Read(id)
 	if err != nil {
@@ -33,15 +32,9 @@ func generateWebAuthnID() ([]byte, error) {
 	return id, nil
 }
 
-func NewWebAuthnCred(name, displayName string) (*models.WebAuthnCred, error) {
-	id, err := generateWebAuthnID()
-	if err != nil {
-		return nil, err
-	}
-
-	return &models.WebAuthnCred{
-		id,
-		name,
-		displayName,
-	}, nil
-}
+// func NewWebAuthnCred(name, displayName string, userHandle []byte) (*models.Claims, error) {
+// 	return &models.Claims{
+// 		UserHandle: string(userHandle),
+// 		Username:   name,
+// 	}, nil
+// }

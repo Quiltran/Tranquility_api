@@ -38,12 +38,14 @@ func TestValidateToken(t *testing.T) {
 	jwtHandler := services.NewJWTHandler(&config)
 
 	user := models.AuthUser{
-		ID:       1,
-		Username: "Steven",
+		ID:         1,
+		Username:   "Steven",
+		UserHandle: []byte("THIS IS THE HANDLE"),
 	}
 	claims := models.Claims{
-		Username: "Steven",
-		ID:       1,
+		Username:   "Steven",
+		ID:         1,
+		UserHandle: "THIS IS THE HANDLE",
 	}
 	token, err := jwtHandler.GenerateToken(&user)
 	if err != nil {
@@ -60,5 +62,8 @@ func TestValidateToken(t *testing.T) {
 	}
 	if claims.ID != parsedToken.ID {
 		t.Fatalf("parsed token id does not match original id")
+	}
+	if claims.UserHandle != parsedToken.UserHandle {
+		t.Fatalf("parsed user handle does not match original user handle")
 	}
 }

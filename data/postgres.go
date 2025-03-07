@@ -86,6 +86,12 @@ func (p *Postgres) Login(ctx context.Context, user *models.AuthUser, ip string) 
 		return nil, ErrInvalidCredentials
 	}
 
+	if credentials.UserHandle == nil {
+		if err := p.authRepo.UpdateLoginUserHandle(ctx, credentials.ID); err != nil {
+			return nil, fmt.Errorf("an error occurred while updating user_handle while logging in: %v", err)
+		}
+	}
+
 	authToken, err := p.jwtHandler.GenerateToken(credentials)
 	if err != nil {
 		return nil, fmt.Errorf("an error occurred while generating token: %v", err)
@@ -318,36 +324,26 @@ func (p *Postgres) GetChannelMessages(ctx context.Context, userId, guildId, chan
 }
 
 func (p *Postgres) RegisterUserWebAuthn(ctx context.Context, claims *models.Claims) (*protocol.CredentialCreation, error) {
-	credentials, err := services.NewWebAuthnCred(claims.Username, claims.Username)
-	if err != nil {
-		return nil, fmt.Errorf("an error occurred while creating credentials while webauthn registration: %v", err)
-	}
 	options, session, err := p.webAuthn.BeginRegistration(
-		credentials,
+		claims,
 		webauthn.WithResidentKeyRequirement(protocol.ResidentKeyRequirementRequired),
 	)
 	if err != nil {
 		return nil, err
 	}
-
 	sessionBytes, err := json.Marshal(&session)
 	if err != nil {
 		return nil, fmt.Errorf("an error occurred while marshaling webauthn registration session: %v", err)
 	}
 
-	if err := p.authRepo.saveWebAuthnRegistrationSession(ctx, claims.ID, sessionBytes); err != nil {
+	if err := p.authRepo.saveWebAuthnSession(ctx, string(claims.ID), sessionBytes); err != nil {
 		return nil, fmt.Errorf("an error occurred while saving webauthn session to the cache: %v", err)
 	}
 	return options, nil
 }
 
 func (p *Postgres) CompleteWebauthnRegister(ctx context.Context, claims *models.Claims, r *http.Request) error {
-	credentials, err := services.NewWebAuthnCred(claims.Username, claims.Username)
-	if err != nil {
-		return fmt.Errorf("an error occurred while creating credentials while completing webauthn registration: %v", err)
-	}
-
-	sessionBytes, err := p.authRepo.getWebAuthnRegistrationSession(ctx, claims.ID)
+	sessionBytes, err := p.authRepo.getWebAuthnSession(ctx, string(claims.ID))
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return fmt.Errorf("registration session was not found while completing webauthn registration: %v", err)
@@ -359,9 +355,8 @@ func (p *Postgres) CompleteWebauthnRegister(ctx context.Context, claims *models.
 	if err := json.Unmarshal(sessionBytes, &session); err != nil {
 		return fmt.Errorf("an error occurred to unmarshal webauthn registration session in order to complete: %v", err)
 	}
-	credentials.Id = session.UserID
 
-	credential, err := p.webAuthn.FinishRegistration(credentials, session, r)
+	credential, err := p.webAuthn.FinishRegistration(claims, session, r)
 	if err != nil {
 		return fmt.Errorf("an error occurred while finishing webauthn registration: %v", err)
 	}
@@ -371,4 +366,67 @@ func (p *Postgres) CompleteWebauthnRegister(ctx context.Context, claims *models.
 	}
 
 	return nil
+}
+
+func (p *Postgres) BeginWebAuthnLogin(ctx context.Context, requestIP string) (*protocol.CredentialAssertion, error) {
+	options, session, err := p.webAuthn.BeginDiscoverableLogin()
+	if err != nil {
+		return nil, err
+	}
+
+	sessionBytes, err := json.Marshal(&session)
+	if err != nil {
+		return nil, fmt.Errorf("an error occurred while marshaling webauthn login session: %v", err)
+	}
+
+	if err := p.authRepo.saveWebAuthnSession(ctx, requestIP, sessionBytes); err != nil {
+		return nil, fmt.Errorf("an error occurred while saving webauthn login session to the cache: %v", err)
+	}
+
+	return options, nil
+}
+
+func (p *Postgres) CompleteWebAuthnLogin(ctx context.Context, requestIP string, r *http.Request) (*models.AuthUser, error) {
+	sessionBytes, err := p.authRepo.getWebAuthnSession(ctx, requestIP)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("login session was not found while completing webauthn login: %v", err)
+		}
+		return nil, fmt.Errorf("an error occurred while getting webauthn login session to complete: %v", err)
+	}
+
+	var session webauthn.SessionData
+	if err := json.Unmarshal(sessionBytes, &session); err != nil {
+		return nil, fmt.Errorf("an error occurred to unmarshal webauthn login session in order to complete: %v", err)
+	}
+
+	var userCredentials *models.AuthUser
+	credential, err := p.webAuthn.FinishDiscoverableLogin(
+		func(rawID, userHandle []byte) (claims webauthn.User, err error) {
+			user, claims, err := p.authRepo.getWebAuthnCredential(ctx, rawID, userHandle)
+			if err != nil {
+				if errors.Is(err, sql.ErrNoRows) {
+					return nil, fmt.Errorf("no credential was found while completing webauthn login")
+				}
+				return nil, fmt.Errorf("an error occurred while finding webauthn login user: %v", err)
+			}
+			userCredentials = user
+			return claims, nil
+		},
+		session,
+		r,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("an error occurred while finishing webauthn discoverable login: %v", err)
+	}
+	fmt.Println(credential)
+
+	authToken, err := p.jwtHandler.GenerateToken(userCredentials)
+	if err != nil {
+		return nil, fmt.Errorf("an error occurred while generating token: %v", err)
+	}
+	userCredentials.Token = authToken
+	userCredentials.ClearAuth()
+
+	return userCredentials, nil
 }
