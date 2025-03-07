@@ -37,12 +37,6 @@ type WebAuthnConfig struct {
 	RPOrigins     []string
 }
 
-type WebAuthnConfig struct {
-	RPDisplayName string
-	RPID          string
-	RPOrigins     []string
-}
-
 type PushNotificationConfig struct {
 	VapidPrivateKey string
 	VapidPublicKey  string
