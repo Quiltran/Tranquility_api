@@ -44,7 +44,7 @@ func (j *JWTHandler) decryptToken(encrypted string) (string, error) {
 		return "", fmt.Errorf("an error occurred while parsing JWE: %v", err)
 	}
 
-	tokenBytes, err := parsedCompact.Decrypt(&j.JWEPrivateKey)
+	tokenBytes, err := parsedCompact.Decrypt(j.JWEPrivateKey)
 	if err != nil {
 		return "", fmt.Errorf("an error occurred while decrypting JWE: %v", err)
 	}
@@ -54,8 +54,9 @@ func (j *JWTHandler) decryptToken(encrypted string) (string, error) {
 
 func (j *JWTHandler) GenerateToken(user *models.AuthUser) (string, error) {
 	claims := models.Claims{
-		Username: user.Username,
-		ID:       user.ID,
+		Username:   user.Username,
+		ID:         user.ID,
+		UserHandle: user.UserHandle,
 		RegisteredClaims: &jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(j.Lifetime)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
@@ -66,12 +67,25 @@ func (j *JWTHandler) GenerateToken(user *models.AuthUser) (string, error) {
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(j.Key))
+	signedString, err := token.SignedString([]byte(j.Key))
+	if err != nil {
+		return "", fmt.Errorf("an error occurred while signing jwt: %v", err)
+	}
+	encrypted, err := j.encryptToken(signedString)
+	if err != nil {
+		return "", fmt.Errorf("an error occurred while encrypting jwt: %v", err)
+	}
+
+	return encrypted, nil
 }
 
 func (j *JWTHandler) ParseToken(token string) (*models.Claims, error) {
+	decryptedToken, err := j.decryptToken(token)
+	if err != nil {
+		return nil, fmt.Errorf("an error occurred while decrypting token: %v", err)
+	}
 	jwtToken, err := jwt.ParseWithClaims(
-		token,
+		decryptedToken,
 		&models.Claims{},
 		func(token *jwt.Token) (interface{}, error) {
 			return []byte(j.Key), nil
@@ -103,8 +117,12 @@ func (j *JWTHandler) ParseToken(token string) (*models.Claims, error) {
 }
 
 func (j *JWTHandler) VerifyToken(token string) (*models.Claims, error) {
+	decryptedToken, err := j.decryptToken(token)
+	if err != nil {
+		return nil, fmt.Errorf("an error occurred while decrypting token while verifying: %v", err)
+	}
 	claims, err := jwt.ParseWithClaims(
-		token,
+		decryptedToken,
 		&models.Claims{},
 		func(token *jwt.Token) (interface{}, error) {
 			return []byte(j.Key), nil
