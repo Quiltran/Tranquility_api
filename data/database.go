@@ -26,8 +26,8 @@ type IDatabase interface {
 	WebsocketLogin(ctx context.Context, userId int32, websocketToken string) (*models.AuthUser, error)
 	RegisterUserWebAuthn(ctx context.Context, claims *models.Claims) (*protocol.CredentialCreation, error)
 	CompleteWebauthnRegister(ctx context.Context, claims *models.Claims, r *http.Request) error
-	BeginWebAuthnLogin(ctx context.Context, requestIP string) (*protocol.CredentialAssertion, error)
-	CompleteWebAuthnLogin(ctx context.Context, requestIP string, r *http.Request) (*models.AuthUser, error)
+	BeginWebAuthnLogin(ctx context.Context) (string, *protocol.CredentialAssertion, error)
+	CompleteWebAuthnLogin(ctx context.Context, sessionId string, r *http.Request) (*models.AuthUser, error)
 
 	// Attachment
 	CreateAttachment(ctx context.Context, file *multipart.File, attachment *models.Attachment) (*models.Attachment, error)

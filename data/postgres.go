@@ -3,6 +3,7 @@ package data
 import (
 	"context"
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -366,23 +367,28 @@ func (p *Postgres) CompleteWebauthnRegister(ctx context.Context, claims *models.
 	return nil
 }
 
-func (p *Postgres) BeginWebAuthnLogin(ctx context.Context, requestIP string) (*protocol.CredentialAssertion, error) {
+func (p *Postgres) BeginWebAuthnLogin(ctx context.Context) (string, *protocol.CredentialAssertion, error) {
+	sessionIdBytes, err := services.GenerateWebAuthnID()
+	if err != nil {
+		return "", nil, fmt.Errorf("an error occurred while generating the sessionID to be used for webauthn login request: %v", err)
+	}
+	sessionId := base64.StdEncoding.EncodeToString(sessionIdBytes)
 	options, session, err := p.webAuthn.BeginDiscoverableLogin()
 	if err != nil {
-		return nil, err
+		return "", nil, err
 	}
 
 	sessionBytes, err := json.Marshal(&session)
 	if err != nil {
-		return nil, fmt.Errorf("an error occurred while marshaling webauthn login session: %v", err)
+		return "", nil, fmt.Errorf("an error occurred while marshaling webauthn login session: %v", err)
 	}
-	p.webAuthnSessions.AddSession(requestIP, sessionBytes)
+	p.webAuthnSessions.AddSession(sessionId, sessionBytes)
 
-	return options, nil
+	return sessionId, options, nil
 }
 
-func (p *Postgres) CompleteWebAuthnLogin(ctx context.Context, requestIP string, r *http.Request) (*models.AuthUser, error) {
-	sessionBytes, err := p.webAuthnSessions.GetSession(requestIP)
+func (p *Postgres) CompleteWebAuthnLogin(ctx context.Context, sessionId string, r *http.Request) (*models.AuthUser, error) {
+	sessionBytes, err := p.webAuthnSessions.GetSession(sessionId)
 	if err != nil {
 		return nil, fmt.Errorf("an error occurred while getting webauthn login session to complete: %v", err)
 	}
