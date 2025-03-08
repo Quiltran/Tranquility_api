@@ -191,7 +191,7 @@ func (a *Auth) completeLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	user, err := a.database.CompleteWebAuthnLogin(r.Context(), sessionId, r)
 	if err != nil {
-		handleError(w, r, a.logger, fmt.Errorf("an error occurred while compliting registration for user to webauthn: %v", err), nil, http.StatusInternalServerError, "error")
+		handleError(w, r, a.logger, fmt.Errorf("an error occurred while completing webauthn login for user: %v", err), nil, http.StatusInternalServerError, "error")
 		return
 	}
 
