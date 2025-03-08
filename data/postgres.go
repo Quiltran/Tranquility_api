@@ -417,7 +417,6 @@ func (p *Postgres) CompleteWebAuthnLogin(ctx context.Context, sessionId string, 
 	if err != nil {
 		return nil, fmt.Errorf("an error occurred while finishing webauthn discoverable login: %v", err)
 	}
-	fmt.Println(credential)
 
 	authToken, err := p.jwtHandler.GenerateToken(userCredentials)
 	if err != nil {
