@@ -124,12 +124,21 @@ func (j *JWTHandler) VerifyToken(token string) (*models.Claims, error) {
 	if err != nil {
 		return nil, fmt.Errorf("an error occurred while decrypting token while verifying: %v", err)
 	}
+
+	parserOptions := make([]jwt.ParserOption, len(j.Audience))
+	for i := range j.Audience {
+		parserOptions = append(parserOptions, jwt.WithAudience(j.Audience[i]))
+	}
+	parserOptions = append(parserOptions, jwt.WithIssuer(j.Issuer))
+
 	claims, err := jwt.ParseWithClaims(
 		decryptedToken,
 		&models.Claims{},
 		func(token *jwt.Token) (interface{}, error) {
 			return []byte(j.Key), nil
-		})
+		},
+		parserOptions...,
+	)
 
 	if err != nil {
 		return nil, fmt.Errorf("an error occurred while parsing JWT: %v", err)
