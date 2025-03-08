@@ -125,7 +125,7 @@ func (j *JWTHandler) VerifyToken(token string) (*models.Claims, error) {
 		return nil, fmt.Errorf("an error occurred while decrypting token while verifying: %v", err)
 	}
 
-	parserOptions := make([]jwt.ParserOption, len(j.Audience))
+	parserOptions := make([]jwt.ParserOption, 0)
 	for i := range j.Audience {
 		parserOptions = append(parserOptions, jwt.WithAudience(j.Audience[i]))
 	}
