@@ -399,7 +399,7 @@ func (p *Postgres) CompleteWebAuthnLogin(ctx context.Context, sessionId string, 
 	}
 
 	var userCredentials *models.AuthUser
-	credential, err := p.webAuthn.FinishDiscoverableLogin(
+	_, err = p.webAuthn.FinishDiscoverableLogin(
 		func(rawID, userHandle []byte) (claims webauthn.User, err error) {
 			user, claims, err := p.authRepo.getWebAuthnCredential(ctx, rawID, userHandle)
 			if err != nil {
