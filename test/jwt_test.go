@@ -1,6 +1,12 @@
-package services_test
+package test
 
 import (
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/base64"
+	"encoding/pem"
+	"fmt"
+	"os"
 	"testing"
 	"time"
 	"tranquility/config"
@@ -8,16 +14,47 @@ import (
 	"tranquility/services"
 )
 
-func TestGenerateToken(t *testing.T) {
-	user := models.AuthUser{
-		ID:       1,
-		Username: "Steven",
+var (
+	jwtConfig config.JWTConfig
+)
+
+func init() {
+	jwePem, err := os.ReadFile("../.vscode/private_key.pem")
+	if err != nil {
+		panic(fmt.Errorf("an error occurred while reading JWE private key: %v", err))
+	}
+	block, _ := pem.Decode(jwePem)
+	if block == nil {
+		panic(fmt.Errorf("an error occurred while decoding JWE private key"))
 	}
 
-	config := config.JWTConfig{
-		Key: "testing",
+	privateKey, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+	if err != nil {
+		panic(fmt.Errorf("an error occurred while parsing JWE private key: %v", err))
 	}
-	jwtHandler := services.NewJWTHandler(&config)
+	rsaKey, ok := privateKey.(*rsa.PrivateKey)
+	if !ok {
+		panic(fmt.Errorf("an error occurred while converting JWE private key to RSA: %v", err))
+	}
+
+	jwtConfig = config.JWTConfig{
+		JWEPrivateKey: rsaKey,
+		Lifetime:      time.Duration(2 * time.Minute),
+		Issuer:        "TestIssuer",
+		Audience:      []string{"http://localhost", "https://example.com"},
+		Key:           "secret_key",
+	}
+
+}
+
+func TestGenerateToken(t *testing.T) {
+	user := models.AuthUser{
+		ID:         1,
+		Username:   "Steven",
+		UserHandle: []byte{1, 2, 3, 4, 5},
+	}
+
+	jwtHandler := services.NewJWTHandler(&jwtConfig)
 
 	token, err := jwtHandler.GenerateToken(&user)
 	if err != nil {
@@ -31,11 +68,7 @@ func TestGenerateToken(t *testing.T) {
 }
 
 func TestValidateToken(t *testing.T) {
-	config := config.JWTConfig{
-		Lifetime: time.Duration(2 * time.Minute),
-		Key:      "testing",
-	}
-	jwtHandler := services.NewJWTHandler(&config)
+	jwtHandler := services.NewJWTHandler(&jwtConfig)
 
 	user := models.AuthUser{
 		ID:         1,
@@ -45,7 +78,7 @@ func TestValidateToken(t *testing.T) {
 	claims := models.Claims{
 		Username:   "Steven",
 		ID:         1,
-		UserHandle: "THIS IS THE HANDLE",
+		UserHandle: base64.StdEncoding.EncodeToString([]byte("THIS IS THE HANDLE")),
 	}
 	token, err := jwtHandler.GenerateToken(&user)
 	if err != nil {

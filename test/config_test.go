@@ -1,4 +1,4 @@
-package config
+package test
 
 import (
 	"os"
@@ -6,12 +6,13 @@ import (
 	"slices"
 	"testing"
 	"time"
+	"tranquility/config"
 )
 
 func TestNewConfig(t *testing.T) {
 	// Backup environment variables
 	backupEnv := make(map[string]string)
-	for _, env := range []string{"CONNECTION_STRING", "UPLOAD_PATH", "ALLOWED_ORIGINS", "JWT_LIFETIME", "JWT_ISSUER", "JWT_AUDIENCE", "JWT_SECRET"} {
+	for _, env := range []string{"CONNECTION_STRING", "UPLOAD_PATH", "ALLOWED_ORIGINS", "JWT_LIFETIME", "JWT_ISSUER", "JWT_AUDIENCE", "JWT_SECRET", "JWT_PRIVATE_KEY_PATH"} {
 		backupEnv[env] = os.Getenv(env)
 	}
 	defer func() {
@@ -20,21 +21,31 @@ func TestNewConfig(t *testing.T) {
 			os.Setenv(env, value)
 		}
 	}()
+	// Base config values
+	os.Setenv("CONNECTION_STRING", "test_connection")
+	os.Setenv("UPLOAD_PATH", "test_upload")
+	os.Setenv("ALLOWED_ORIGINS", "http://localhost:3000,https://example.com")
+	os.Setenv("TURNSTILE_SECRET", "1x0000000000000000000000000000000AA")
+
+	// JWT config values
+	os.Setenv("JWT_PRIVATE_KEY_PATH", "../.vscode/private_key.pem")
+	os.Setenv("JWT_LIFETIME", "10")
+	os.Setenv("JWT_ISSUER", "test_issuer")
+	os.Setenv("JWT_AUDIENCE", "test_audience1,test_audience2")
+	os.Setenv("JWT_SECRET", "test_secret")
+
+	// Push Notification config values
+	os.Setenv("VAPID_PRIVATE", "private")
+	os.Setenv("VAPID_PUBLIC", "public")
+	os.Setenv("PUSH_SUB", "sub")
+
+	// WebAuthn config values
+	os.Setenv("RP_DISPLAY_NAME", "test.com")
+	os.Setenv("RPID", "test")
+	os.Setenv("RP_ORIGINS", "http://localhost,https://example.com")
 
 	t.Run("success", func(t *testing.T) {
-		os.Setenv("CONNECTION_STRING", "test_connection")
-		os.Setenv("UPLOAD_PATH", "test_upload")
-		os.Setenv("ALLOWED_ORIGINS", "http://localhost:3000,https://example.com")
-		os.Setenv("JWT_LIFETIME", "10")
-		os.Setenv("JWT_ISSUER", "test_issuer")
-		os.Setenv("JWT_AUDIENCE", "test_audience1,test_audience2")
-		os.Setenv("JWT_SECRET", "test_secret")
-		os.Setenv("TURNSTILE_SECRET", "secret")
-		os.Setenv("VAPID_PRIVATE", "private")
-		os.Setenv("VAPID_PUBLIC", "public")
-		os.Setenv("PUSH_SUB", "sub")
-
-		cfg, err := NewConfig()
+		cfg, err := config.NewConfig()
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -52,8 +63,8 @@ func TestNewConfig(t *testing.T) {
 		if !reflect.DeepEqual(cfg.AllowedOrigins, expectedOrigins) {
 			t.Errorf("AllowedOrigins mismatch: got %v, want %v", cfg.AllowedOrigins, expectedOrigins)
 		}
-		if cfg.JWTConfig.Lifetime != 10*time.Minute {
-			t.Errorf("JWT Lifetime mismatch: got %v, want %v", cfg.JWTConfig.Lifetime, 10*time.Minute)
+		if cfg.JWTConfig.Lifetime != 2*time.Minute {
+			t.Errorf("JWT Lifetime mismatch: got %v, want %v", cfg.JWTConfig.Lifetime, 2*time.Minute)
 		}
 		if cfg.JWTConfig.Issuer != "test_issuer" {
 			t.Errorf("JWT Issuer mismatch: got %v, want %v", cfg.JWTConfig.Issuer, "test_issuer")
@@ -68,7 +79,7 @@ func TestNewConfig(t *testing.T) {
 
 	t.Run("missing CONNECTION_STRING", func(t *testing.T) {
 		os.Unsetenv("CONNECTION_STRING")
-		_, err := NewConfig()
+		_, err := config.NewConfig()
 		if err == nil {
 			t.Errorf("expected error, got nil")
 		}
@@ -80,7 +91,7 @@ func TestNewConfig(t *testing.T) {
 	t.Run("missing UPLOAD_PATH", func(t *testing.T) {
 		os.Setenv("CONNECTION_STRING", "test_connection")
 		os.Unsetenv("UPLOAD_PATH")
-		_, err := NewConfig()
+		_, err := config.NewConfig()
 		if err == nil {
 			t.Errorf("expected error, got nil")
 		}
@@ -93,7 +104,7 @@ func TestNewConfig(t *testing.T) {
 		os.Setenv("CONNECTION_STRING", "test_connection")
 		os.Setenv("UPLOAD_PATH", "test_upload")
 		os.Unsetenv("ALLOWED_ORIGINS")
-		_, err := NewConfig()
+		_, err := config.NewConfig()
 		if err == nil {
 			t.Errorf("expected error, got nil")
 		}
@@ -114,7 +125,7 @@ func TestNewConfig(t *testing.T) {
 				t.Errorf("The code did not panic")
 			}
 		}()
-		NewConfig()
+		config.NewConfig()
 	})
 
 	t.Run("missing JWT_SECRET", func(t *testing.T) {
@@ -128,14 +139,14 @@ func TestNewConfig(t *testing.T) {
 				t.Errorf("The code did not panic")
 			}
 		}()
-		NewConfig()
+		config.NewConfig()
 	})
 
 	t.Run("Empty ALLOWED_ORIGINS string", func(t *testing.T) {
 		os.Setenv("CONNECTION_STRING", "test_connection")
 		os.Setenv("UPLOAD_PATH", "test_upload")
 		os.Setenv("ALLOWED_ORIGINS", "")
-		_, err := NewConfig()
+		_, err := config.NewConfig()
 		if err == nil {
 			t.Errorf("expected error, got nil")
 		}
