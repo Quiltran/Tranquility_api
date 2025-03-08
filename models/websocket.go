@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/coder/websocket"
+	"github.com/go-webauthn/webauthn/protocol"
 )
 
 // This interface determines what data can be sent as data over the websocket.
@@ -96,4 +97,9 @@ func NewWebsocketMessageCommand(userId int32, data *WebsocketMessage, targets ma
 			AcknowledgeChannel:  errorChannel,
 		},
 		errorChannel
+}
+
+type BeginLoginResponse struct {
+	SessionID string
+	*protocol.CredentialAssertion
 }

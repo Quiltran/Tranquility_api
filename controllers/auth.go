@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"time"
 	"tranquility/app"
 	"tranquility/data"
 	"tranquility/models"
@@ -174,44 +173,28 @@ func (a *Auth) beginLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.SetCookie(w, &http.Cookie{
-		Name:     "webauthnSession",
-		Value:    sessionId,
-		Expires:  time.Now().Add(time.Minute),
-		Path:     "/",
-		SameSite: http.SameSiteNoneMode,
-		Domain:   ".quiltran.com",
-		Secure:   true,
-		HttpOnly: true,
-	})
-
-	if err := writeJsonBody(w, options); err != nil {
+	response := models.BeginLoginResponse{
+		SessionID:           sessionId,
+		CredentialAssertion: options,
+	}
+	if err := writeJsonBody(w, &response); err != nil {
 		handleError(w, r, a.logger, fmt.Errorf("an error occurred while writing webauthn login response to the body: %v", err), nil, http.StatusInternalServerError, "error")
 		return
 	}
 }
 
 func (a *Auth) completeLogin(w http.ResponseWriter, r *http.Request) {
-	sessionId, err := r.Cookie("webauthnSession")
-	if err != nil {
-		handleError(w, r, a.logger, fmt.Errorf("an error occurred getting session id cookie while completing webauthn login: %v", err), nil, http.StatusInternalServerError, "error")
+	sessionId := r.Header.Get("Session-ID")
+	if sessionId == "" {
+		handleError(w, r, a.logger, fmt.Errorf("unable to get session ID from header while completing webauthn login"), nil, http.StatusInternalServerError, "error")
 		return
 	}
-	user, err := a.database.CompleteWebAuthnLogin(r.Context(), sessionId.Value, r)
+	user, err := a.database.CompleteWebAuthnLogin(r.Context(), sessionId, r)
 	if err != nil {
 		handleError(w, r, a.logger, fmt.Errorf("an error occurred while compliting registration for user to webauthn: %v", err), nil, http.StatusInternalServerError, "error")
 		return
 	}
 
-	http.SetCookie(
-		w,
-		&http.Cookie{
-			Name:     "webauthnSession",
-			Value:    "",
-			Expires:  time.Unix(0, 0),
-			HttpOnly: true,
-		},
-	)
 	if err = writeJsonBody(w, user); err != nil {
 		handleError(w, r, a.logger, fmt.Errorf("error while logging in: %v", err), nil, http.StatusInternalServerError, "error")
 		return
