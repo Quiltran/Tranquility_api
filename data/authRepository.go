@@ -144,12 +144,16 @@ func (a *authRepo) saveWebAuthnCredential(ctx context.Context, credentials *weba
 			user_id,
 			credential_id,
 			public_key,
-			signature_count
-		) VALUES ($1, $2, $3, $4)`,
+			signature_count,
+			backup_eligible,
+			backup_state
+		) VALUES ($1, $2, $3, $4, $5, $6)`,
 		&userId,
 		&credentials.ID,
 		&credentials.PublicKey,
 		&credentials.Authenticator.SignCount,
+		&credentials.Flags.BackupEligible,
+		&credentials.Flags.BackupState,
 	)
 	if err != nil {
 		return fmt.Errorf("an error occurred while saving auth credentials after completing webauthn registration: %v", err)
@@ -187,13 +191,15 @@ func (a *authRepo) getWebAuthnCredential(ctx context.Context, rawId, userHandle 
 	var credential webauthn.Credential
 	err = a.db.QueryRowxContext(
 		ctx,
-		`SELECT credential_id, public_key, signature_count from webauthn_credentials WHERE credential_id = $1 and user_id = $2`,
+		`SELECT credential_id, public_key, signature_count, backup_eligible, backup_state from webauthn_credentials WHERE credential_id = $1 and user_id = $2`,
 		rawId,
 		userCredentials.ID,
 	).Scan(
 		&credential.ID,
 		&credential.PublicKey,
 		&credential.Authenticator.SignCount,
+		&credential.Flags.BackupEligible,
+		&credential.Flags.BackupState,
 	)
 	if err != nil {
 		return nil, nil, fmt.Errorf("an error occurred while collecting the credential for webauthn login for %s: %v", userCredentials.Username, err)
