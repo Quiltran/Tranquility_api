@@ -11,6 +11,7 @@ import (
 	"golang.org/x/crypto/argon2"
 )
 
+// These values are stagnant and won't be changed unless reason arises.
 const (
 	Memory      = 64 * 1024
 	Iterations  = 3

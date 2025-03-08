@@ -17,6 +17,8 @@ type Claims struct {
 	*jwt.RegisteredClaims
 }
 
+// This function is used to implement the webauthn.User interface.
+// We cann't change the singature to return an error so the best we can do is log it.
 func (c *Claims) WebAuthnID() []byte {
 	authId, err := base64.StdEncoding.DecodeString(c.UserHandle)
 	if err != nil {
@@ -26,14 +28,17 @@ func (c *Claims) WebAuthnID() []byte {
 	return authId
 }
 
+// This function is used to implement the webauthn.User interface.
 func (c *Claims) WebAuthnName() string {
 	return c.Username
 }
 
+// This function is used to implement the webauthn.User interface.
 func (c *Claims) WebAuthnDisplayName() string {
 	return c.Username
 }
 
+// This function is used to implement the webauthn.User interface.
 func (c *Claims) WebAuthnCredentials() []webauthn.Credential {
 	return c.Credentials
 }

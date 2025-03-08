@@ -31,6 +31,10 @@ func (a *authRepo) Login(ctx context.Context, user *models.AuthUser) (*models.Au
 	return &output, err
 }
 
+// # THIS FUNCTION SHOULD NOT BE CALLED IN NORMAL CIRCUMSTANCES
+//
+// UpdateLoginUserHandle is used to give a user a handle that is used with WebAuthn.
+// If the user's user handle is changed, their credentials stored on their device will no longer work.
 func (a *authRepo) UpdateLoginUserHandle(ctx context.Context, userId int32) error {
 	userHandle, err := services.GenerateWebAuthnID()
 	if err != nil {

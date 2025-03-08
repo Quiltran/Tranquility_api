@@ -2,6 +2,8 @@ package models
 
 import (
 	"time"
+
+	"github.com/go-webauthn/webauthn/protocol"
 )
 
 type AuthUser struct {
@@ -24,4 +26,10 @@ func (a *AuthUser) ClearAuth() {
 	a.Password = ""
 	a.ConfirmPassword = ""
 	a.UserHandle = nil
+}
+
+// This is used while completing the WebAuthn login process.
+type BeginLoginResponse struct {
+	SessionID string
+	*protocol.CredentialAssertion
 }

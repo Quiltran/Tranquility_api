@@ -11,6 +11,13 @@ type claimsKey struct{}
 
 var ClaimsContextKey claimsKey
 
+// ValidateJWT middleware is used to completely verify the JWT.
+//
+// It will return a 401 if any of the following are found:
+//  1. The JWT is expired
+//  2. The audience provided does not match
+//  3. The issuer provided does not match
+//  4. The signature is invalid
 func ValidateJWT(next http.Handler, logger services.Logger, jwtHandler *services.JWTHandler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")

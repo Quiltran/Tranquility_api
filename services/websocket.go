@@ -10,9 +10,14 @@ import (
 	"github.com/coder/websocket"
 )
 
+// WebsocketServer should created in the main process, and passed to the WebsocketController as a pointer.
+//
+// This struct is in charge of sending communications and notificates between connections.
 type WebsocketServer struct {
+	// The mutex is required to not allow new users to be added until all messages are sent.
 	mutex sync.Mutex
-	// The channel here is for the server to data back to the handler
+	// When the user connects to WebsocketServer, they pass their connection with it so that
+	// we don't have to manage communication back to the requester.
 	users map[int32]*websocket.Conn
 	// This is used for handlers to send commands to the server
 	commandChannel  chan models.WebsocketCommand
@@ -96,6 +101,8 @@ func (ws *WebsocketServer) handleCommand(command models.WebsocketCommand) error 
 	return nil
 }
 
+// # This function should be ran in a goroutine.
+// This function allows for
 func (ws *WebsocketServer) Run() {
 	ws.logger.INFO("Websocket server has started...")
 	for {
@@ -112,6 +119,9 @@ func (ws *WebsocketServer) Run() {
 	}
 }
 
+// This function will be called any time a new websocket connection is created.
+// Each connection has it's own WebsocketHandler so they can communicate to the WebsocketServer
+// but not directly to each other.
 func (ws *WebsocketServer) NewHandler() *WebsocketHandler {
 	return &WebsocketHandler{
 		commandChannel: ws.commandChannel,

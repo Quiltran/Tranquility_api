@@ -1,8 +1,10 @@
 package services
 
 import (
+	"context"
 	"crypto/rand"
 	"errors"
+	"fmt"
 	"time"
 	"tranquility/config"
 
@@ -62,19 +64,36 @@ func (w *WebAuthnSessions) GetSession(key string) ([]byte, error) {
 	if !ok {
 		return nil, ErrSessionNotFound
 	}
+	// Sessions should not be used twice, so clear the session after being retrieved.
+	// If the session was retrieved we can assume it was at least attempted to used.
 	delete(w.sessions, key)
 
 	return sessionBytes.Value, nil
 }
 
-func (w *WebAuthnSessions) ClearExpiredSessions() int32 {
-	var output int32 = 0
-	for key, value := range w.sessions {
-		if time.Since(value.InsertedAt) > time.Duration(time.Minute) {
-			delete(w.sessions, key)
-			output += 1
+// # Start should be ran in a goroutine.
+//
+// The session memory cache should be cleared regularly of expired tokens.
+// This clearing should be done in the background so it doesn't block.
+// Seeing that sessions are ephemeral due to their expiration time, we do not need to wrap them in a mutex.
+func (w *WebAuthnSessions) Start(ctx context.Context, logger Logger) {
+	timer := time.NewTicker(time.Minute)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-timer.C:
+			var clearedSessionCount int32 = 0
+			for key, value := range w.sessions {
+				if time.Since(value.InsertedAt) > time.Duration(time.Minute) {
+					delete(w.sessions, key)
+					clearedSessionCount += 1
+				}
+			}
+			if clearedSessionCount > 0 {
+				logger.INFO(fmt.Sprintf("%d WebAuthn sessions have been cleared", clearedSessionCount))
+			}
 		}
 	}
-
-	return output
 }

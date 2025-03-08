@@ -26,6 +26,7 @@ func NewPushNotificationService(config *config.PushNotificationConfig, logger Lo
 	}
 }
 
+// SimplePush sends a notification to the URL provided by the user when the registered for push notifications.
 func (p *PushNotificationService) SimplePush(subscription *webpush.Subscription, message *models.PushNotificationMessage) error {
 	data, err := message.Marhsal()
 	if err != nil {

@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/coder/websocket"
-	"github.com/go-webauthn/webauthn/protocol"
 )
 
 // This interface determines what data can be sent as data over the websocket.
@@ -14,6 +13,7 @@ type WebsocketMessageData interface {
 }
 
 // This is what's received over the websocket.
+// We do not know the type of data after receiving it and have to check before accessing it.
 type WebsocketMessageWrapper struct {
 	Type string          `json:"type"`
 	Data json.RawMessage `json:"data,omitempty"`
@@ -97,9 +97,4 @@ func NewWebsocketMessageCommand(userId int32, data *WebsocketMessage, targets ma
 			AcknowledgeChannel:  errorChannel,
 		},
 		errorChannel
-}
-
-type BeginLoginResponse struct {
-	SessionID string
-	*protocol.CredentialAssertion
 }

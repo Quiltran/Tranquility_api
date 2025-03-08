@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"time"
 	"tranquility/app"
 	"tranquility/config"
 	"tranquility/controllers"
@@ -34,23 +33,7 @@ func main() {
 		panic("unable to create webAuthn object")
 	}
 	webAuthnSessions := services.NewWebAuthnSessions()
-
-	go func() {
-
-		timer := time.NewTicker(time.Minute)
-
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-timer.C:
-				clearedSessionCount := webAuthnSessions.ClearExpiredSessions()
-				if clearedSessionCount > 0 {
-					logger.INFO(fmt.Sprintf("%d WebAuthn sessions have been cleared", clearedSessionCount))
-				}
-			}
-		}
-	}()
+	go webAuthnSessions.Start(ctx, logger)
 
 	fileHandler := services.NewFileHandler(config.UploadPath)
 	jwtHandler := services.NewJWTHandler(config.JWTConfig)
