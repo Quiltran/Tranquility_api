@@ -64,34 +64,47 @@ func NewConfig() (*Config, error) {
 		return nil, errors.New("TURNSTILE_SECRET was not set")
 	}
 
+	jwtConfig, err := loadJWTConfig()
+	if err != nil {
+		return nil, err
+	}
+	pushNotificationConfig, err := loadPushNotificationConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	webAuthnConfig, err := loadWebAuthnConfig()
+	if err != nil {
+		return nil, err
+	}
 	return &Config{
 		ConnectionString:       connectionString,
 		UploadPath:             uploadPath,
 		AllowedOrigins:         origins,
 		TurnstileSecret:        turnstileSecret,
-		JWTConfig:              loadJWTConfig(),
-		PushNotificationConfig: loadPushNotificationConfig(),
-		WebAuthnConfig:         loadWebAuthnConfig(),
+		JWTConfig:              jwtConfig,
+		PushNotificationConfig: pushNotificationConfig,
+		WebAuthnConfig:         webAuthnConfig,
 	}, nil
 }
 
-func loadJWTConfig() *JWTConfig {
+func loadJWTConfig() (*JWTConfig, error) {
 	jwePem, err := os.ReadFile(os.Getenv("JWT_PRIVATE_KEY_PATH"))
 	if err != nil {
-		panic(fmt.Errorf("an error occurred while reading JWE private key: %v", err))
+		return nil, fmt.Errorf("an error occurred while reading JWE private key: %v", err)
 	}
 	block, _ := pem.Decode(jwePem)
 	if block == nil {
-		panic(fmt.Errorf("an error occurred while decoding JWE private key"))
+		return nil, fmt.Errorf("an error occurred while decoding JWE private key")
 	}
 
 	privateKey, err := x509.ParsePKCS8PrivateKey(block.Bytes)
 	if err != nil {
-		panic(fmt.Errorf("an error occurred while parsing JWE private key: %v", err))
+		return nil, fmt.Errorf("an error occurred while parsing JWE private key: %v", err)
 	}
 	rsaKey, ok := privateKey.(*rsa.PrivateKey)
 	if !ok {
-		panic(fmt.Errorf("an error occurred while converting JWE private key to RSA: %v", err))
+		return nil, fmt.Errorf("an error occurred while converting JWE private key to RSA: %v", err)
 	}
 
 	lifetimeSetting := os.Getenv("JWT_LIFETIME")
@@ -99,7 +112,7 @@ func loadJWTConfig() *JWTConfig {
 	if lifetimeSetting != "" {
 		l, err := strconv.ParseInt(lifetimeSetting, 10, 64)
 		if err != nil {
-			panic(fmt.Errorf("an error occurred while loading jwt lifetime: %v", err))
+			return nil, fmt.Errorf("an error occurred while loading jwt lifetime: %v", err)
 		}
 		lifetime = time.Duration(time.Duration(l) * time.Minute)
 	}
@@ -109,19 +122,19 @@ func loadJWTConfig() *JWTConfig {
 
 	issuer := os.Getenv("JWT_ISSUER")
 	if issuer == "" {
-		panic(fmt.Errorf("JWT_ISSUER was not set"))
+		return nil, fmt.Errorf("JWT_ISSUER was not set")
 	}
 
 	audienceSetting := os.Getenv("JWT_AUDIENCE")
 	if audienceSetting == "" {
-		panic(fmt.Errorf("JWT_AUDIENCE was not set"))
+		return nil, fmt.Errorf("JWT_AUDIENCE was not set")
 	}
 	audience := strings.Split(audienceSetting, ",")
 	slices.Sort(audience)
 
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
-		panic(fmt.Errorf("JWT_SECRET was not set"))
+		return nil, fmt.Errorf("JWT_SECRET was not set")
 	}
 
 	jwtConfig := &JWTConfig{
@@ -132,55 +145,52 @@ func loadJWTConfig() *JWTConfig {
 		JWEPrivateKey: rsaKey,
 	}
 
-	return jwtConfig
+	return jwtConfig, nil
 }
 
-func loadPushNotificationConfig() *PushNotificationConfig {
+func loadPushNotificationConfig() (*PushNotificationConfig, error) {
 	privateVapidKey := os.Getenv("VAPID_PRIVATE")
 	if privateVapidKey == "" {
-		panic(fmt.Errorf("VAPID_PRIVATE was not set"))
+		return nil, fmt.Errorf("VAPID_PRIVATE was not set")
 	}
 
 	publicVapidKey := os.Getenv("VAPID_PUBLIC")
 	if publicVapidKey == "" {
-		panic(fmt.Errorf("VAPID_PUBLIC was not set"))
+		return nil, fmt.Errorf("VAPID_PUBLIC was not set")
 	}
 
 	pushNotificationSub := os.Getenv("PUSH_SUB")
 	if pushNotificationSub == "" {
-		panic(fmt.Errorf("PUSH_SUB was not set"))
+		return nil, fmt.Errorf("PUSH_SUB was not set")
 	}
 
 	return &PushNotificationConfig{
 		VapidPrivateKey: privateVapidKey,
 		VapidPublicKey:  publicVapidKey,
 		Sub:             pushNotificationSub,
-	}
+	}, nil
 }
 
-func loadWebAuthnConfig() *WebAuthnConfig {
+func loadWebAuthnConfig() (*WebAuthnConfig, error) {
 	displayName := os.Getenv("RP_DISPLAY_NAME")
 	if displayName == "" {
-		panic("RP_DISPLAY_NAME was not set")
+		return nil, fmt.Errorf("RP_DISPLAY_NAME was not set")
 	}
 
 	rpId := os.Getenv("RPID")
 	if rpId == "" {
-		panic("RPID was not set")
+		return nil, fmt.Errorf("RPID was not set")
 	}
 
 	rpOrigins := strings.Split(os.Getenv("RP_ORIGINS"), ",")
-	if len(rpOrigins) == 0 {
-		panic("RP_ORIGINS was not set")
-	}
 	for i := range rpOrigins {
 		if rpOrigins[i] == "" {
-			panic(fmt.Sprintf("Invalid RP_ORIGINS were dectected: %v+", rpOrigins))
+			return nil, fmt.Errorf("invalid RP_ORIGINS were dectected: %+v", rpOrigins)
 		}
 	}
 	return &WebAuthnConfig{
 		RPDisplayName: displayName,
 		RPID:          rpId,
 		RPOrigins:     rpOrigins,
-	}
+	}, nil
 }
