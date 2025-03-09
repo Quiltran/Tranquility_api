@@ -44,7 +44,6 @@ func init() {
 		Audience:      []string{"http://localhost", "https://example.com"},
 		Key:           "secret_key",
 	}
-
 }
 
 func TestGenerateToken(t *testing.T) {
@@ -64,7 +63,6 @@ func TestGenerateToken(t *testing.T) {
 	if token == "" {
 		t.Fatal("an empty string was returned while generating token")
 	}
-	t.Logf("generated token: %s", token)
 }
 
 func TestValidateToken(t *testing.T) {
@@ -86,6 +84,40 @@ func TestValidateToken(t *testing.T) {
 	}
 
 	parsedToken, err := jwtHandler.VerifyToken(token)
+	if err != nil {
+		t.Fatalf("verifying token has returned an error: %v", err)
+	}
+
+	if claims.Username != parsedToken.Username {
+		t.Fatalf("parsed token username does not match original")
+	}
+	if claims.ID != parsedToken.ID {
+		t.Fatalf("parsed token id does not match original id")
+	}
+	if claims.UserHandle != parsedToken.UserHandle {
+		t.Fatalf("parsed user handle does not match original user handle")
+	}
+}
+
+func TestParseToken(t *testing.T) {
+	jwtHandler := services.NewJWTHandler(&jwtConfig)
+
+	user := models.AuthUser{
+		ID:         1,
+		Username:   "Steven",
+		UserHandle: []byte("THIS IS THE HANDLE"),
+	}
+	claims := models.Claims{
+		Username:   "Steven",
+		ID:         1,
+		UserHandle: base64.StdEncoding.EncodeToString([]byte("THIS IS THE HANDLE")),
+	}
+
+	token, err := jwtHandler.GenerateToken(&user)
+	if err != nil {
+		t.Fatalf("generating token returned an error: %v", err)
+	}
+	parsedToken, err := jwtHandler.ParseToken(token)
 	if err != nil {
 		t.Fatalf("verifying token has returned an error: %v", err)
 	}

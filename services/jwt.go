@@ -87,6 +87,7 @@ func (j *JWTHandler) ParseToken(token string) (*models.Claims, error) {
 	if err != nil {
 		return nil, fmt.Errorf("an error occurred while decrypting token: %v", err)
 	}
+	// We do not create a list of options because we are disabling all validation then doing manual validation.
 	jwtToken, err := jwt.ParseWithClaims(
 		decryptedToken,
 		&models.Claims{},
