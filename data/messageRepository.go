@@ -29,7 +29,8 @@ func (m *messageRepo) GetChannelMessages(ctx context.Context, userId, guildId, c
 			m.author_id,
 			m.content,
 			m.created_date,
-			m.updated_date
+			m.updated_date,
+			coalesce(m.file_name, '') as author_avatar
 		FROM (
 			SELECT
 				m.id,
@@ -38,12 +39,15 @@ func (m *messageRepo) GetChannelMessages(ctx context.Context, userId, guildId, c
 				m.author_id,
 				m.content,
 				m.created_date,
-				m.updated_date
+				m.updated_date,
+				at.file_name
 			FROM message m
 			JOIN auth a ON a.id = m.author_id
 			JOIN channel c ON m.channel_id = c.id
 			JOIN guild g ON c.guild_id = g.id
 			JOIN member mem ON mem.guild_id = g.id
+			LEFT JOIN profile_mapping pm ON a.id = pm.user_id
+			LEFT JOIN attachment at ON pm.attachment_id = at.id
 			WHERE g.id = $1
 			AND c.id = $2
 			AND mem.user_id = $3
@@ -73,6 +77,7 @@ func (m *messageRepo) GetChannelMessages(ctx context.Context, userId, guildId, c
 			&message.Content,
 			&message.CreatedDate,
 			&message.UpdatedDate,
+			&message.AuthorAvatar,
 		); err != nil {
 			return nil, err
 		}

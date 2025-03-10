@@ -10,6 +10,7 @@ type Message struct {
 	Guild         string     `json:"guild" db:"guild_name"`
 	Author        string     `json:"author,omitempty" db:"author"`
 	AuthorId      int32      `json:"author_id,omitempty" db:"author_id"`
+	AuthorAvatar  string     `json:"author_avatar,omitempty" db:"author_avatar"`
 	Content       string     `json:"content,omitempty" db:"content"`
 	AttachmentIDs []int32    `json:"attachment_ids,omitempty"`
 	Attachment    []string   `json:"attachments,omitempty"`

@@ -308,6 +308,13 @@ func (p *Postgres) GetChannelMessages(ctx context.Context, userId, guildId, chan
 	}
 
 	for i := range messages {
+		if messages[i].AuthorAvatar != "" {
+			url, err := p.fileHandler.GetFileUrl(messages[i].AuthorAvatar)
+			if err != nil {
+				return nil, fmt.Errorf("an error occurred collecting %s avatar while getting channel messages: %v", messages[i].Author, err)
+			}
+			messages[i].AuthorAvatar = url
+		}
 		attachments, err := p.messageRepo.GetMessageAttachment(ctx, messages[i].ID)
 		if err != nil {
 			return nil, fmt.Errorf("unable toget message attachment: %v", err)
