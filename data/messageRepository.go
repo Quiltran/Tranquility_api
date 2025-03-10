@@ -117,6 +117,7 @@ func (m *messageRepo) CreateMessage(ctx context.Context, message *models.Message
 			g.id as guild_id,
 			g.name as guild_name,
             a.username as author,
+			coalesce(at.file_name, '') as author_avatar,
             im.author_id,
             im.content,
             im.created_date,
@@ -124,7 +125,9 @@ func (m *messageRepo) CreateMessage(ctx context.Context, message *models.Message
         FROM im
         JOIN auth a ON im.author_id = a.id
 		JOIN channel c on c.id = im.channel_id
-		JOIN guild g on c.guild_id = g.id`,
+		JOIN guild g on c.guild_id = g.id
+		LEFT JOIN profile_mapping pm on a.id = pm.user_id
+		LEFT JOIN attachment at on pm.attachment_id = at.id`,
 		userId,
 		message.ChannelID,
 		message.Content,

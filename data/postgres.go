@@ -276,6 +276,14 @@ func (p *Postgres) CreateMessage(ctx context.Context, message *models.Message, u
 	}
 	defer tx.Rollback()
 
+	if messageData.AuthorAvatar != "" {
+		url, err := p.fileHandler.GetFileUrl(messageData.AuthorAvatar)
+		if err != nil {
+			return nil, fmt.Errorf("error getting %d avatar after creating their message: %v", messageData.Author, err)
+		}
+		messageData.AuthorAvatar = url
+	}
+
 	if message.AttachmentIDs != nil {
 		for _, attachment := range message.AttachmentIDs {
 			if err := p.messageRepo.CreateAttachmentMapping(ctx, tx, messageData.ID, attachment); err != nil {
