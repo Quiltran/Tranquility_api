@@ -279,7 +279,7 @@ func (p *Postgres) CreateMessage(ctx context.Context, message *models.Message, u
 	if messageData.AuthorAvatar != "" {
 		url, err := p.fileHandler.GetFileUrl(messageData.AuthorAvatar)
 		if err != nil {
-			return nil, fmt.Errorf("error getting %d avatar after creating their message: %v", messageData.Author, err)
+			return nil, fmt.Errorf("error getting %s avatar after creating their message: %v", messageData.Author, err)
 		}
 		messageData.AuthorAvatar = url
 	}
