@@ -98,7 +98,7 @@ func main() {
 	mux := middleware.RequestLog(server, logger)
 	c := cors.New(cors.Options{
 		AllowedOrigins:   config.AllowedOrigins,
-		AllowedMethods:   []string{"GET", "POST", "OPTIONS", "DELETE", "HEAD"},
+		AllowedMethods:   []string{"GET", "POST", "PATCH", "OPTIONS", "DELETE", "HEAD"},
 		AllowedHeaders:   []string{"*"},
 		AllowCredentials: true,
 	})

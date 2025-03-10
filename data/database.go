@@ -60,4 +60,5 @@ type IDatabase interface {
 
 	// Profile
 	GetUserProfile(ctx context.Context, userId int32) (*models.Profile, error)
+	UpdateUserProfile(ctx context.Context, profile *models.Profile, userId int32) (*models.Profile, error)
 }

@@ -427,3 +427,63 @@ func (p *Postgres) CompleteWebAuthnLogin(ctx context.Context, sessionId string, 
 
 	return userCredentials, nil
 }
+
+func (p *Postgres) GetUserProfile(ctx context.Context, userId int32) (*models.Profile, error) {
+	profile, err := p.authRepo.GetUserProfile(ctx, userId)
+	if err != nil {
+		return nil, fmt.Errorf("an error occurred while getting user's profile information: %v", err)
+	}
+
+	if profile.AvatarURL != nil {
+		url, err := p.fileHandler.GetFileUrl(*profile.AvatarURL)
+		if err != nil {
+			return profile, fmt.Errorf("an error occurred while getting the avatar url")
+		}
+		profile.AvatarURL = &url
+	}
+
+	return profile, nil
+}
+
+func (p *Postgres) UpdateUserProfile(ctx context.Context, profile *models.Profile, userId int32) (*models.Profile, error) {
+	tx, err := p.authRepo.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("an error occurred while beginning tx before profile update for %d: %v", userId, err)
+	}
+	defer tx.Rollback()
+
+	if err := p.authRepo.UpdateUserProfile(ctx, tx, profile, userId); err != nil {
+		return nil, fmt.Errorf("an error occurred while updating %d profile: %v", userId, err)
+	}
+
+	if profile.AvatarID != nil {
+		replacedFile, err := p.authRepo.CreateProfileMapping(ctx, tx, userId, *profile.AvatarID)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil, fmt.Errorf("an invalid profile was attempted to be updated. no profile was found: %d", userId)
+			} else if !errors.Is(err, ErrDuplicateProfileAttachment) {
+				return nil, fmt.Errorf("an error occurred while updating %d user avatar: %v", userId, err)
+			}
+		}
+		if replacedFile != nil {
+			p.fileHandler.DeleteFile(*replacedFile)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("an error occurred while commiting %d profile update: %v", userId, err)
+	}
+
+	profile, err = p.authRepo.GetUserProfile(ctx, userId)
+	if err != nil {
+		return nil, fmt.Errorf("an error occurred getting %d profile after update: %v", userId, err)
+	}
+	if profile.AvatarURL != nil {
+		url, err := p.fileHandler.GetFileUrl(*profile.AvatarURL)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get url of new profile picture after updating profile for %d: %v", userId, err)
+		}
+		profile.AvatarURL = &url
+	}
+	return profile, nil
+}
