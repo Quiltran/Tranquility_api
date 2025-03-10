@@ -263,7 +263,7 @@ func (a *authRepo) CreateProfileMapping(ctx context.Context, tx *sqlx.Tx, profil
 		WHERE user_id = $1`,
 		profileId,
 	).Scan(&replacedFileName, &oldAttachmentId)
-	if err != nil {
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, err
 	}
 	if oldAttachmentId == attachmentId {
