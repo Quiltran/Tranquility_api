@@ -84,6 +84,14 @@ func (p *Postgres) Login(ctx context.Context, user *models.AuthUser, ip string) 
 		return nil, err
 	}
 
+	if credentials.Avatar != nil {
+		url, err := p.fileHandler.GetFileUrl(*credentials.Avatar)
+		if err != nil {
+			return nil, fmt.Errorf("an error occurred while collecting %s avatar url: %v", credentials.Username, err)
+		}
+		credentials.Avatar = &url
+	}
+
 	if ok, err := services.VerifyPassword(user.Password, credentials.Password); err != nil {
 		return nil, fmt.Errorf("an error occurred while verifying password: %v", err)
 	} else if !ok {
@@ -143,6 +151,14 @@ func (p *Postgres) RefreshToken(ctx context.Context, user *models.AuthUser) (*mo
 	credentials, err := p.authRepo.RefreshToken(ctx, user)
 	if err != nil {
 		return nil, err
+	}
+
+	if credentials.Avatar != nil {
+		url, err := p.fileHandler.GetFileUrl(*credentials.Avatar)
+		if err != nil {
+			return nil, fmt.Errorf("an error occurred while getting avatar url after refresing auth token for %s: %v", credentials.Username, err)
+		}
+		credentials.Avatar = &url
 	}
 
 	token, err := p.jwtHandler.GenerateToken(credentials)

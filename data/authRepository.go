@@ -25,7 +25,18 @@ func (a *authRepo) Login(ctx context.Context, user *models.AuthUser) (*models.Au
 	var output models.AuthUser
 	err := a.db.QueryRowxContext(
 		ctx,
-		"SELECT id, username, password, refresh_token, websocket_token, user_handle FROM auth WHERE username = $1",
+		`SELECT
+			a.id,
+			a.username,
+			a.password,
+			a.refresh_token,
+			a.websocket_token,
+			a.user_handle,
+			at.file_name as avatar_url
+		FROM auth a
+		LEFT JOIN profile_mapping pm on pm.user_id = a.id
+		LEFT JOIN attachment at on pm.attachment_id = at.id
+		WHERE username = $1`,
 		&user.Username,
 	).StructScan(&output)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -95,7 +106,26 @@ func (a *authRepo) RefreshToken(ctx context.Context, user *models.AuthUser) (*mo
 	var output models.AuthUser
 	err := a.db.QueryRowxContext(
 		ctx,
-		"UPDATE auth SET refresh_token = md5(random()::text), websocket_token = md5(random()::text), updated_date = NOW() AT TIME ZONE 'utc' WHERE id = $1 AND refresh_token = $2 RETURNING id, username, email, refresh_token, websocket_token, updated_date, user_handle;",
+		`WITH updated_auth AS (
+			UPDATE auth
+				SET refresh_token = md5(random()::text), websocket_token = md5(random()::text),
+				updated_date = NOW() AT TIME ZONE 'utc'
+			WHERE id = $1
+				AND refresh_token = $2
+			RETURNING id, username, email, refresh_token, websocket_token, updated_date, user_handle
+		)
+		SELECT
+			ur.id,
+			ur.username,
+			ur.email,
+			ur.refresh_token,
+			ur.websocket_token,
+			ur.updated_date,
+			ur.user_handle,
+			at.file_name as avatar_url
+		FROM updated_auth ur
+		LEFT JOIN profile_mapping pm on pm.user_id = ur.id
+		LEFT JOIN attachment at on pm.attachment_id = at.id`,
 		user.ID,
 		user.RefreshToken,
 	).StructScan(&output)

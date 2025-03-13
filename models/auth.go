@@ -12,6 +12,7 @@ type AuthUser struct {
 	Password        string     `json:"password,omitempty"`
 	ConfirmPassword string     `json:"confirm_password,omitempty"`
 	Email           string     `json:"email,omitempty"`
+	Avatar          *string    `json:"avatar_url,omitempty" db:"avatar_url"`
 	Token           string     `json:"token,omitempty"`
 	RefreshToken    string     `json:"refresh_token,omitempty" db:"refresh_token"`
 	WebsocketToken  string     `json:"websocket_token,omitempty" db:"websocket_token"`
