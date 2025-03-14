@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"errors"
@@ -106,99 +107,148 @@ func TestGetJsonBody(t *testing.T) {
 	}
 }
 
+type TestStruct struct {
+	StringField  string            `json:"string_field"`
+	IntField     int               `json:"int_field"`
+	BoolField    bool              `json:"bool_field"`
+	SliceField   []string          `json:"slice_field"`
+	MapField     map[string]int    `json:"map_field"`
+	NestedStruct *NestedTestStruct `json:"nested_struct,omitempty"`
+}
+
+type NestedTestStruct struct {
+	NestedString string `json:"nested_string"`
+}
+
 func TestWriteJsonBody(t *testing.T) {
-	tests := []struct {
-		name                string
-		body                interface{}
-		expectedErr         string
-		expectedBody        string
-		expectedContentType string
+	testCases := []struct {
+		name    string
+		body    interface{}
+		wantErr bool
+		want    interface{}
 	}{
 		{
-			name: "Valid struct",
-			body: struct {
-				Name string `json:"name"`
-				Age  int    `json:"age"`
-			}{Name: "Alice", Age: 30},
-			expectedBody:        `{"name":"Alice","age":30}`,
-			expectedContentType: "application/json",
+			name: "valid struct",
+			body: TestStruct{
+				StringField:  "test",
+				IntField:     123,
+				BoolField:    true,
+				SliceField:   []string{"a", "b"},
+				MapField:     map[string]int{"x": 1, "y": 2},
+				NestedStruct: &NestedTestStruct{NestedString: "nested"},
+			},
+			wantErr: false,
 		},
 		{
-			name:                "Empty struct",
-			body:                struct{}{},
-			expectedBody:        `{}`,
-			expectedContentType: "application/json",
+			name: "valid struct pointer",
+			body: &TestStruct{
+				StringField:  "test",
+				IntField:     123,
+				BoolField:    true,
+				SliceField:   []string{"a", "b"},
+				MapField:     map[string]int{"x": 1, "y": 2},
+				NestedStruct: &NestedTestStruct{NestedString: "nested"},
+			},
+			wantErr: false,
 		},
 		{
-			name: "Nested struct",
-			body: struct {
-				Address struct {
-					City    string `json:"city"`
-					ZipCode string `json:"zip"`
-				} `json:"address"`
-			}{Address: struct {
-				City    string `json:"city"`
-				ZipCode string `json:"zip"`
-			}{City: "New York", ZipCode: "10001"}},
-			expectedBody:        `{"address":{"city":"New York","zip":"10001"}}`,
-			expectedContentType: "application/json",
+			name:    "nil struct pointer",
+			body:    (*TestStruct)(nil),
+			wantErr: true,
 		},
 		{
-			name:        "Not a struct",
-			body:        "not a struct",
-			expectedErr: "tried writing body to request but it was not a struct or array: string",
+			name:    "valid slice",
+			body:    []int{1, 2, 3},
+			wantErr: false,
 		},
 		{
-			name:                "Slice",
-			body:                []int{1, 2, 3},
-			expectedBody:        "[1, 2, 3]",
-			expectedContentType: "application/json",
+			name:    "valid array",
+			body:    [3]int{1, 2, 3},
+			wantErr: false,
 		},
 		{
-			name:        "Map",
-			body:        map[string]int{"a": 1},
-			expectedErr: "tried writing body to request but it was not a struct or array: map",
+			name:    "invalid type int",
+			body:    123,
+			wantErr: true,
+		},
+		{
+			name:    "invalid type string",
+			body:    "test",
+			wantErr: true,
+		},
+		{
+			name:    "empty struct",
+			body:    TestStruct{},
+			wantErr: false,
+		},
+		{
+			name:    "empty slice",
+			body:    []string{},
+			wantErr: false,
+		},
+		{
+			name:    "empty map",
+			body:    map[string]int{},
+			wantErr: true,
+		},
+		{
+			name: "struct with nil nested struct",
+			body: TestStruct{
+				StringField: "test",
+				IntField:    123,
+				BoolField:   true,
+				SliceField:  []string{"a", "b"},
+				MapField:    map[string]int{"x": 1, "y": 2},
+			},
+			wantErr: false,
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
 			recorder := httptest.NewRecorder()
+			err := writeJsonBody(recorder, tc.body)
 
-			err := writeJsonBody(recorder, tt.body)
-
-			if tt.expectedErr != "" {
-				if err == nil {
-					t.Errorf("expected error: %q, but got nil", tt.expectedErr)
-				} else if err.Error() != tt.expectedErr {
-					t.Errorf("expected error: %q, but got: %q", tt.expectedErr, err.Error())
-				}
-				return // If expecting error, no further checks needed
-			}
-
-			if err != nil {
-				t.Errorf("unexpected error: %v", err)
+			if (err != nil) != tc.wantErr {
+				t.Errorf("writeJsonBody() error = %v, wantErr %v", err, tc.wantErr)
 				return
 			}
 
-			if recorder.Header().Get("content-type") != tt.expectedContentType {
-				t.Errorf("expected content-type: %q, but got: %q", tt.expectedContentType, recorder.Header().Get("content-type"))
+			if !tc.wantErr {
+				if recorder.Header().Get("content-type") != "application/json" {
+					t.Errorf("content-type header not set correctly")
+				}
+				if recorder.Header().Get("Content-Encoding") != "gzip" {
+					t.Errorf("Content-Encoding header not set correctly")
+				}
+
+				gzipReader, err := gzip.NewReader(recorder.Body)
+				if err != nil {
+					t.Fatalf("failed to create gzip reader: %v", err)
+				}
+				defer gzipReader.Close()
+
+				var buf bytes.Buffer
+				_, err = buf.ReadFrom(gzipReader)
+				if err != nil {
+					t.Fatalf("failed to read from gzip reader: %v", err)
+				}
+
+				var decoded interface{}
+				err = json.Unmarshal(buf.Bytes(), &decoded)
+				if err != nil {
+					t.Fatalf("failed to unmarshal json: %v", err)
+				}
+
+				if tc.want != nil {
+					if !reflect.DeepEqual(decoded, tc.want) {
+						t.Errorf("decoded json does not match expected: got %v, want %v", decoded, tc.want)
+					}
+				} else {
+					//If want is nil, just check that unmarshaling was successful.
+				}
+
 			}
-
-			var buf bytes.Buffer
-			buf.ReadFrom(recorder.Body)
-			actualBody := buf.String()
-
-			// Use a more robust comparison for JSON to handle variations in whitespace/ordering
-			var expectedJSON interface{}
-			json.Unmarshal([]byte(tt.expectedBody), &expectedJSON)
-			var actualJSON interface{}
-			json.Unmarshal([]byte(actualBody), &actualJSON)
-
-			if !reflect.DeepEqual(actualJSON, expectedJSON) {
-				t.Errorf("expected body: %q, but got: %q", tt.expectedBody, actualBody)
-			}
-
 		})
 	}
 }

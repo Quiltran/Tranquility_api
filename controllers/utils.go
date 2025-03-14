@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -64,8 +65,27 @@ func writeJsonBody[T any](w http.ResponseWriter, body T) error {
 		return fmt.Errorf("tried writing body to request but it was not a struct or array: %v", v.Kind())
 	}
 
-	w.Header().Add("content-type", "application/json")
-	return json.NewEncoder(w).Encode(body)
+	marshaled, err := json.Marshal(body)
+	if err != nil {
+		return fmt.Errorf("an error occurred while marshaling json body for request: %v", err)
+	}
+
+	w.Header().Set("content-type", "application/json")
+	w.Header().Set("Content-Encoding", "gzip")
+
+	gzipWriter := gzip.NewWriter(w)
+	defer gzipWriter.Close()
+
+	_, err = gzipWriter.Write(marshaled)
+	if err != nil {
+		return fmt.Errorf("an error occurred while compressing marshaled body for request: %v", err)
+	}
+	err = gzipWriter.Flush()
+	if err != nil {
+		return fmt.Errorf("an error occurred while flushing gzip body writer for reqest: %v", err)
+	}
+
+	return nil
 }
 
 func handleError(w http.ResponseWriter, r *http.Request, logger services.Logger, err error, claims *models.Claims, code int, logLevel string, message ...string) {
